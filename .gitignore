@@ -1,0 +1,5 @@
+# projects
+project/vs
+
+# debug program database
+*.pdb
