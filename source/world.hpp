@@ -5,9 +5,32 @@
 
 constexpr int tile_size{ 32 };
 
-enum class tile_type {
-	wall = 0,
-	floor = 1
+namespace tile_type {
+constexpr unsigned char floor{ 0 };
+constexpr unsigned char wall{ 1 };
+constexpr unsigned char total_types{ 2 };
+}
+
+struct game_world_tile {
+
+	unsigned char corner[4]{};
+
+	game_world_tile() = default;
+	game_world_tile(unsigned char type);
+
+	bool is_only(unsigned char type) const;
+	unsigned int get_uv_index() const;
+
+	unsigned char get_top_left() const;
+	unsigned char get_top_right() const;
+	unsigned char get_bottom_left() const;
+	unsigned char get_bottom_right() const;
+
+	void set_top_left(unsigned char type);
+	void set_top_right(unsigned char type);
+	void set_bottom_left(unsigned char type);
+	void set_bottom_right(unsigned char type);
+
 };
 
 class game_world_room {
@@ -25,8 +48,9 @@ public:
 	void resize(int width, int height);
 
 	void update();
-	void set_tile(int x, int y, tile_type tile);
-	tile_type tile_at(int x, int y) const;
+	void set_tile(int x, int y, game_world_tile tile);
+	game_world_tile tile_at(int x, int y) const;
+	game_world_tile& get_tile(int x, int y);
 
 	int left() const;
 	int top() const;
@@ -38,9 +62,11 @@ public:
 
 	int make_index(int x, int y) const;
 
+	bool is_colliding_with_tile(no::vector2f position) const;
+
 private:
 
-	std::vector<tile_type> tiles;
+	std::vector<game_world_tile> tiles;
 	no::vector2i size;
 
 };
@@ -64,8 +90,9 @@ public:
 
 private:
 
+	void make_tile(game_world_room& room, game_world_tile& tile, int x, int y);
 	void make_room(game_world& world);
-	void make_border(game_world_room& room, tile_type tile) const;
+	void make_border(game_world_room& room, game_world_tile tile) const;
 	void place_room_right(game_world& world, game_world_room& room);
 	void place_room_bottom(game_world& world, game_world_room& room);
 	void place_room_top(game_world& world, game_world_room& room);

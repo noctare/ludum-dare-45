@@ -31,6 +31,7 @@ private:
 	int shader{ -1 };
 	no::rectangle rectangle;
 	int blank_texture{ -1 };
+	int tiles_texture{ -1 };
 
 	no::transform2 room_transform;
 

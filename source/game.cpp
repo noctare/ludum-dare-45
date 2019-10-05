@@ -25,11 +25,23 @@ void game_state::update() {
 		if (ImGui::MenuItem("Limit FPS", nullptr, &limit_fps)) {
 			set_synchronization(limit_fps ? no::draw_synchronization::if_updated : no::draw_synchronization::always);
 		}
+		if (ImGui::MenuItem("God mdoe", nullptr, &god_mode)) {
+
+		}
 		ImGui::PopItemWidth();
 		ImGui::EndMenu();
 	}
 	if (ImGui::BeginMenu("View")) {
 		ImGui::PushItemWidth(360.0f);
+		if (ImGui::MenuItem("Reset camera position")) {
+			renderer.camera.transform.position = 0.0f;
+		}
+		if (ImGui::MenuItem("Zoom (400%)")) {
+			zoom = 4.0f;
+		}
+		if (ImGui::MenuItem("Zoom (300%)")) {
+			zoom = 3.0f;
+		}
 		if (ImGui::MenuItem("Zoom (200%)")) {
 			zoom = 2.0f;
 		}

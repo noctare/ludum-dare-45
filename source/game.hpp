@@ -10,8 +10,9 @@ class game_state;
 class game_state : public no::program_state {
 public:
 
+	float zoom{ 2.0f };
 	//float zoom{ 1.0f };
-	float zoom{ 0.25f };
+	//float zoom{ 0.25f };
 	bool god_mode{ false };
 
 	game_world world;
