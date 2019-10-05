@@ -10,6 +10,8 @@ class game_world_room;
 class game_renderer {
 public:
 
+	no::ortho_camera camera;
+
 	game_renderer(game_state& game);
 	~game_renderer();
 
@@ -19,23 +21,20 @@ public:
 
 	void render_room(const game_world_room& room);
 	void hide_room(const game_world_room& room);
-	bool is_rendered(const game_world_room& room);
+	bool is_rendered(const game_world_room& room) const;
+	void draw_world(const game_world& world) const;
 
 private:
 
-	void draw_world(const game_world& world);
-	void draw_room(const game_world_room& room);
-
 	game_state& game;
-	int test_texture{ -1 };
 	no::sprite_animation animation;
 	int shader{ -1 };
-	no::ortho_camera camera;
 	no::rectangle rectangle;
 	int blank_texture{ -1 };
 
+	no::transform2 room_transform;
+
 	struct rendered_room {
-		no::transform2 transform;
 		no::quad_array<no::sprite_vertex, unsigned short> shape;
 		const game_world_room* room{ nullptr };
 	};

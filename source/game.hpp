@@ -12,6 +12,7 @@ public:
 
 	//float zoom{ 1.0f };
 	float zoom{ 0.25f };
+	bool god_mode{ false };
 
 	game_world world;
 
