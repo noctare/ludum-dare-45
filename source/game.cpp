@@ -71,6 +71,12 @@ void game_state::update() {
 	renderer.update();
 	world.update();
 	controller.update(*this);
+	if (god_mode) {
+		renderer.camera.transform.position.x += keyboard().is_key_down(no::key::right) * 15.0f;
+		renderer.camera.transform.position.y += keyboard().is_key_down(no::key::down) * 15.0f;
+		renderer.camera.transform.position.x -= keyboard().is_key_down(no::key::left) * 15.0f;
+		renderer.camera.transform.position.y -= keyboard().is_key_down(no::key::up) * 15.0f;
+	}
 }
 
 void game_state::draw() {

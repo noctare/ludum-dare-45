@@ -127,16 +127,15 @@ game_world_generator::game_world_generator(unsigned long long seed) : random{ se
 }
 
 void game_world_generator::generate(game_world& world) {
-	for (int i{ 0 }; i < 50; i++) {
+	for (int i{ 0 }; i < 100; i++) {
 		make_room(world);
 	}
 }
 
 void game_world_generator::make_tile(game_world_room& room, game_world_tile& tile, int x, int y) {
 	no::vector2i index{ room.left() + x, room.top() + y };
-	const float noise{ no::octave_noise(6.0f, 0.1f, 0.1f, index.to<float>().x, index.to<float>().y) };
-	const float wall_chance{ random.chance(0.5f) ? 0.5f : 0.2f };
-	if (noise > wall_chance) {
+	const float noise{ no::octave_noise(3.0f, 0.01f, 0.1f, index.to<float>().x, index.to<float>().y) };
+	if (noise > 0.5f) {
 		tile = tile_type::wall;
 	} else {
 		tile = tile_type::floor;
@@ -161,26 +160,46 @@ void game_world_generator::make_room(game_world& world) {
 			make_tile(room, room.get_tile(x, y), x, y);
 		}
 	}
-	for (int x{ 1 }; x < room.width() - 1; x++) {
-		for (int y{ 1 }; y < room.height() - 1; y++) {
+	make_border(room, { tile_type::wall });
+	for (int x{ 0 }; x < room.width(); x++) {
+		for (int y{ 0 }; y < room.height(); y++) {
 			const auto tile{ room.tile_at(x, y) };
 			if (tile.is_only(tile_type::wall)) {
-				room.get_tile(x - 1, y - 1).set_bottom_right(tile.get_top_left());
-				room.get_tile(x, y - 1).set_bottom_left(tile.get_top_left());
-				room.get_tile(x, y - 1).set_bottom_right(tile.get_top_right());
-				room.get_tile(x + 1, y - 1).set_bottom_left(tile.get_top_right());
-				room.get_tile(x - 1, y).set_top_right(tile.get_top_left());
-				room.get_tile(x - 1, y).set_bottom_right(tile.get_bottom_left());
-				room.get_tile(x + 1, y).set_top_left(tile.get_top_right());
-				room.get_tile(x + 1, y).set_bottom_left(tile.get_bottom_right());
-				room.get_tile(x - 1, y + 1).set_top_right(tile.get_bottom_left());
-				room.get_tile(x, y + 1).set_top_left(tile.get_bottom_left());
-				room.get_tile(x, y + 1).set_top_right(tile.get_bottom_right());
-				room.get_tile(x + 1, y + 1).set_top_left(tile.get_bottom_right());
+				bool left_neighbour{ x > 0 };
+				bool top_neighbour{ y > 0 };
+				bool right_neighbour{ x + 1 < room.width() };
+				bool bottom_neighbour{ y + 1 < room.height() };
+				if (left_neighbour) {
+					if (top_neighbour) {
+						room.get_tile(x - 1, y - 1).set_bottom_right(tile.get_top_left());
+					}
+					if (bottom_neighbour) {
+						room.get_tile(x - 1, y + 1).set_top_right(tile.get_bottom_left());
+					}
+					room.get_tile(x - 1, y).set_top_right(tile.get_top_left());
+					room.get_tile(x - 1, y).set_bottom_right(tile.get_bottom_left());
+				}
+				if (top_neighbour) {
+					room.get_tile(x, y - 1).set_bottom_left(tile.get_top_left());
+					room.get_tile(x, y - 1).set_bottom_right(tile.get_top_right());
+				}
+				if (right_neighbour) {
+					if (top_neighbour) {
+						room.get_tile(x + 1, y - 1).set_bottom_left(tile.get_top_right());
+					}
+					if (bottom_neighbour) {
+						room.get_tile(x + 1, y + 1).set_top_left(tile.get_bottom_right());
+					}
+					room.get_tile(x + 1, y).set_top_left(tile.get_top_right());
+					room.get_tile(x + 1, y).set_bottom_left(tile.get_bottom_right());
+				}
+				if (bottom_neighbour) {
+					room.get_tile(x, y + 1).set_top_left(tile.get_bottom_left());
+					room.get_tile(x, y + 1).set_top_right(tile.get_bottom_right());
+				}
 			}
 		}
 	}
-	make_border(room, { tile_type::wall });
 	world_size.x = room.index.x + room.width();
 	world_size.y = room.index.y + room.height();
 	last_world_size_delta = { room.width(), room.height() };
