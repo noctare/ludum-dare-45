@@ -83,6 +83,7 @@ void game_world_room::update() {
 	for (auto& monster : monsters) {
 		monster.update();
 	}
+	process_attacks();
 }
 
 void game_world_room::set_tile(int x, int y, game_world_tile tile) {
@@ -123,6 +124,44 @@ int game_world_room::height() const {
 
 int game_world_room::make_index(int x, int y) const {
 	return y * width() + x;
+}
+
+void game_world_room::spawn_attack(bool by_player, int type, int attack_health, no::vector2f position, no::vector2f size, no::vector2f speed, int max_life_ms) {
+	auto& attack{ attacks.emplace_back() };
+	attack.type = type;
+	attack.max_life_ms = max_life_ms;
+	attack.origin = position;
+	attack.position = position;
+	attack.size = size;
+	attack.speed = speed;
+	attack.by_player = by_player;
+	attack.health = attack_health;
+	attack.life_timer.start();
+}
+
+void game_world_room::process_attacks() {
+	for (auto& attack : attacks) {
+		if (attack.by_player) {
+			for (auto& monster : monsters) {
+				if (world->player.collision_transform().collides_with(monster.collision_transform())) {
+					monster.on_being_hit();
+					attack.health--;
+					if (attack.health <= 0) {
+						break;
+					}
+				}
+			}
+		} else {
+
+		}
+		attack.position += attack.speed;
+	}
+	for (int i{ 0 }; i < static_cast<int>(attacks.size()); i++) {
+		if (attacks[i].health <= 0 || attacks[i].life_timer.milliseconds() >= attacks[i].max_life_ms) {
+			attacks.erase(attacks.begin() + i);
+			i--;
+		}
+	}
 }
 
 bool game_world::test_tile_mask(const game_world_room& room, no::vector2f position) const {

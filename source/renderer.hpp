@@ -35,6 +35,9 @@ private:
 	int tiles_texture{ -1 };
 	int player_texture{ -1 };
 	int skeleton_texture{ -1 };
+	int fire_weapon_texture{ -1 };
+	int normal_weapon_texture{ -1 };
+	int water_weapon_texture{ -1 };
 
 	no::transform2 room_transform;
 

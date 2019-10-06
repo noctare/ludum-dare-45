@@ -51,10 +51,23 @@ public:
 		no::vector2i to_tile;
 	};
 
+	struct active_attack {
+		int type{ 0 }; // weapon_type if player, and monster_type if not
+		int max_life_ms{ 0 };
+		no::timer life_timer;
+		no::vector2f origin;
+		no::vector2f position;
+		no::vector2f size;
+		no::vector2f speed;
+		bool by_player{ false };
+		int health{ 0 };
+	};
+
 	game_world* world{ nullptr };
 	no::vector2i index;
 	std::vector<door_connection> doors;
 	std::vector<monster_object> monsters;
+	std::vector<active_attack> attacks;
 	bool initial_monsters_spawned{ false };
 
 	void add_door(no::vector2i from, game_world_room* room, no::vector2i to) {
@@ -87,7 +100,10 @@ public:
 	int height() const;
 
 	int make_index(int x, int y) const;
-	
+
+	void spawn_attack(bool by_player, int type, int attack_health, no::vector2f position, no::vector2f size, no::vector2f speed, int max_life_ms);
+	void process_attacks();
+
 	bool is_tile_colliding_with(no::vector2f position) const;
 	bool is_position_within(no::vector2f position) const;
 	bool is_connected_to(const game_world_room& room) const;

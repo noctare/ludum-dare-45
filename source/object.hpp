@@ -6,6 +6,15 @@
 class game_world;
 class game_world_room;
 
+namespace animation_type {
+constexpr int walk{ 0 };
+constexpr int idle{ 1 };
+constexpr int stab{ 2 };
+constexpr int cast{ 3 };
+constexpr int hit{ 4 };
+constexpr int die{ 5 };
+}
+
 class game_object {
 public:
 
@@ -25,7 +34,7 @@ public:
 	}
 
 	bool is_attacking() const {
-		return last_animation == 2;
+		return last_animation == 2 || last_animation == 3;
 	}
 
 };

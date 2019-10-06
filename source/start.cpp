@@ -1,12 +1,10 @@
 #include "game.hpp"
 #include "assets.hpp"
 
-#define INSTALLED_VERSION 0
+#define DEV_VERSION 1
 
 void configure() {
-#if INSTALLED_VERSION
-	no::set_asset_directory("");
-#else
+#if DEV_VERSION
 	no::set_asset_directory("../..");
 #endif
 	no::register_all_textures();

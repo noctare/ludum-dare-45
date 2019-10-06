@@ -41,6 +41,9 @@ void game_state::update() {
 		if (ImGui::MenuItem("Show all rooms", nullptr, &show_all_rooms)) {
 
 		}
+		if (ImGui::MenuItem("Show attack collisions", nullptr, &show_attacks)) {
+
+		}
 		ImGui::PopItemWidth();
 		ImGui::EndMenu();
 	}
@@ -73,6 +76,32 @@ void game_state::update() {
 		ImGui::PopItemWidth();
 		ImGui::EndMenu();
 	}
+	if (ImGui::BeginMenu("Player")) {
+		ImGui::PushItemWidth(360.0f);
+		if (ImGui::MenuItem("Set weapon: None")) {
+			world.player.weapon = weapon_type::none;
+		}
+		if (ImGui::MenuItem("Set weapon: Normal sword")) {
+			world.player.weapon = weapon_type::normal_sword;
+		}
+		if (ImGui::MenuItem("Set weapon: Normal staff")) {
+			world.player.weapon = weapon_type::normal_staff;
+		}
+		if (ImGui::MenuItem("Set weapon: Fire sword")) {
+			world.player.weapon = weapon_type::fire_sword;
+		}
+		if (ImGui::MenuItem("Set weapon: Fire staff")) {
+			world.player.weapon = weapon_type::fire_staff;
+		}
+		if (ImGui::MenuItem("Set weapon: Water sword")) {
+			world.player.weapon = weapon_type::water_sword;
+		}
+		if (ImGui::MenuItem("Set weapon: Water staff")) {
+			world.player.weapon = weapon_type::water_staff;
+		}
+		ImGui::PopItemWidth();
+		ImGui::EndMenu();
+	}
 	ImGui::PushStyleColor(ImGuiCol_Text, 0xFF11EEEE);
 	ImGui::Text("\tFPS: %i", frame_counter().current_fps());
 	ImGui::PopStyleColor();
@@ -80,6 +109,9 @@ void game_state::update() {
 	ImGui::Text("\tZoom: %i%%", static_cast<int>(zoom * 100.0f));
 	ImGui::PopStyleColor();
 	ImGui::Text("\tPlayer Position: %s", CSTRING(world.player.transform.position));
+	if (world.player.room) {
+		ImGui::Text("\tActive Attacks: %i", static_cast<int>(world.player.room->attacks.size()));
+	}
 	ImGui::EndMainMenuBar();
 	no::imgui::end_frame();
 	if (god_mode) {

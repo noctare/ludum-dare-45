@@ -11,6 +11,9 @@ game_renderer::game_renderer(game_state& game) : game{ game } {
 	tiles_texture = no::require_texture("tiles");
 	player_texture = no::require_texture("player");
 	skeleton_texture = no::require_texture("skeleton");
+	normal_weapon_texture = no::require_texture("normal");
+	fire_weapon_texture = no::require_texture("fire");
+	water_weapon_texture = no::require_texture("water");
 }
 
 game_renderer::~game_renderer() {
@@ -18,6 +21,9 @@ game_renderer::~game_renderer() {
 	no::release_texture("tiles");
 	no::release_texture("player");
 	no::release_texture("skeleton");
+	no::release_texture("normal");
+	no::release_texture("fire");
+	no::release_texture("water");
 	no::release_shader("sprite");
 }
 
@@ -154,15 +160,40 @@ void game_renderer::draw_world(const game_world& world) {
 		}
 	}
 	draw_player(world.player);
+	if (game.show_attacks && world.player.room) {
+		no::bind_texture(blank_texture);
+		no::get_shader_variable("color").set(no::vector4f{ 1.0f, 0.0f, 0.0f, 1.0f });
+		for (auto& attack : world.player.room->attacks) {
+			no::draw_shape(rectangle, no::transform2{ attack.position, attack.size });
+		}
+		no::get_shader_variable("color").set(no::vector4f{ 1.0f });
+	}
 }
 
 void game_renderer::draw_player(const player_object& player) {
-	no::bind_texture(player_texture);
-	no::vector2f size{ no::texture_size(player_texture).to<float>() / no::vector2f{ 4.0f, 8.0f } };
+	no::vector2f size{ no::texture_size(player_texture).to<float>() / no::vector2f{ 4.0f, player_animation_rows } };
 	no::vector2f position{ player.transform.position };
 	if (!player.facing_right) {
 		position.x += size.x;
 		size.x = -size.x;
 	}
+	no::bind_texture(player_texture);
 	player.animation.draw(position, size);
+	if (player.weapon != weapon_type::none) {
+		switch (player.weapon) {
+		case weapon_type::normal_sword:
+		case weapon_type::normal_staff:
+			no::bind_texture(normal_weapon_texture);
+			break;
+		case weapon_type::fire_sword:
+		case weapon_type::fire_staff:
+			no::bind_texture(fire_weapon_texture);
+			break;
+		case weapon_type::water_sword:
+		case weapon_type::water_staff:
+			no::bind_texture(water_weapon_texture);
+			break;
+		}
+		player.animation.draw(position, size);
+	}
 }
