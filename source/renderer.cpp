@@ -89,20 +89,20 @@ void game_renderer::render_room(const game_world_room& room) {
 		}
 	}
 	for (const auto door : room.doors) {
-		const int x{ room.left() + door.x };
-		const int y{ room.top() + door.y };
+		const int x{ room.left() + door.from_tile.x };
+		const int y{ room.top() + door.from_tile.y };
 		top_left.position = { static_cast<float>(x), static_cast<float>(y) };
 		top_right.position = { static_cast<float>(x + 1), static_cast<float>(y) };
 		bottom_right.position = { static_cast<float>(x + 1), static_cast<float>(y + 1) };
 		bottom_left.position = { static_cast<float>(x), static_cast<float>(y + 1) };
 		no::vector2f uv_1;
-		if (door.x == 1) {
+		if (door.from_tile.x == 1) {
 			uv_1 = { 128.0f, 0.0f }; // left
-		} else if (door.y == 1) {
+		} else if (door.from_tile.y == 1) {
 			uv_1 = { 64.0f, 0.0f }; // top
-		} else if (door.x == room.width() - 2) {
+		} else if (door.from_tile.x == room.width() - 2) {
 			uv_1 = { 160.0f, 0.0f }; // right
-		} else if (door.y == room.height() - 2) {
+		} else if (door.from_tile.y == room.height() - 2) {
 			uv_1 = { 96.0f, 0.0f }; // bottom
 		}
 		uv_1 /= tileset_size;
@@ -142,10 +142,12 @@ void game_renderer::draw_world(const game_world& world) {
 	no::bind_texture(tiles_texture);
 	no::set_shader_model(room_transform);
 	for (const auto& room : rendered_rooms) {
-		room.shape.bind();
-		room.shape.draw();
-		room.doors.bind();
-		room.doors.draw();
+		if (room.room == world.player.room || game.show_all_rooms) {
+			room.shape.bind();
+			room.shape.draw();
+			room.doors.bind();
+			room.doors.draw();
+		}
 	}
 	draw_player(world.player);
 }

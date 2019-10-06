@@ -1,8 +1,10 @@
 #pragma once
 
 #include "transform.hpp"
+#include "event.hpp"
 
 class game_world;
+class game_world_room;
 
 class player_object {
 public:
@@ -17,6 +19,7 @@ public:
 	bool facing_right{ false };
 	bool is_moving{ false };
 	game_world* world{ nullptr };
+	game_world_room* room{ nullptr };
 
 	void update();
 	void move(bool left, bool right, bool up, bool down);

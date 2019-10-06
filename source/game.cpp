@@ -5,13 +5,15 @@
 #include "assets.hpp"
 #include <ctime>
 
-game_state::game_state() : renderer{ *this }, generator{ static_cast<unsigned long long>(std::time(nullptr)) } {
+game_state::game_state() : renderer{ *this }, generator{ static_cast<unsigned long long>(std::time(nullptr)) }, controller{ *this } {
 	no::imgui::create(window());
 	set_synchronization(no::draw_synchronization::if_updated);
 	window().set_swap_interval(no::swap_interval::immediate);
+	window().set_clear_color({ 71.0f / 256.0f, 27.0f / 256.0f, 0.0f });
 	generator.generate(world);
 	world.player.transform.position = 128.0f;
 	world.player.transform.scale = 16.0f;
+	controller.register_event_listeners();
 }
 
 game_state::~game_state() {
@@ -27,6 +29,11 @@ void game_state::update() {
 			set_synchronization(limit_fps ? no::draw_synchronization::if_updated : no::draw_synchronization::always);
 		}
 		if (ImGui::MenuItem("God mode", nullptr, &god_mode)) {
+			if (god_mode) {
+				show_all_rooms = true;
+			}
+		}
+		if (ImGui::MenuItem("Show all rooms", nullptr, &show_all_rooms)) {
 
 		}
 		ImGui::PopItemWidth();
@@ -61,14 +68,6 @@ void game_state::update() {
 		ImGui::PopItemWidth();
 		ImGui::EndMenu();
 	}
-	if (ImGui::BeginMenu("World")) {
-		ImGui::PushItemWidth(360.0f);
-		if (ImGui::MenuItem("Generate room")) {
-			generator.generate(world);
-		}
-		ImGui::PopItemWidth();
-		ImGui::EndMenu();
-	}
 	ImGui::PushStyleColor(ImGuiCol_Text, 0xFF11EEEE);
 	ImGui::Text("\tFPS: %i", frame_counter().current_fps());
 	ImGui::PopStyleColor();
@@ -86,7 +85,7 @@ void game_state::update() {
 		renderer.camera.transform.position.y += keyboard().is_key_down(no::key::s) * 15.0f;
 		renderer.camera.transform.position.x += keyboard().is_key_down(no::key::d) * 15.0f;
 	} else {
-		controller.update(*this);
+		controller.update();
 	}
 }
 

@@ -7,6 +7,7 @@
 class game_world;
 
 constexpr int tile_size{ 32 };
+constexpr float tile_size_f{ 32.0f };
 
 namespace tile_type {
 constexpr unsigned char floor{ 0 };
@@ -40,9 +41,22 @@ public:
 class game_world_room {
 public:
 
+	struct door_connection {
+		no::vector2i from_tile;
+		game_world_room* to_room{ nullptr };
+		no::vector2i to_tile;
+	};
+
 	game_world* world{ nullptr };
 	no::vector2i index;
-	std::vector<no::vector2i> doors;
+	std::vector<door_connection> doors;
+
+	void add_door(no::vector2i from, game_world_room* room, no::vector2i to) {
+		auto& door{ doors.emplace_back() };
+		door.from_tile = from;
+		door.to_room = room;
+		door.to_tile = to;
+	}
 	
 	game_world_room() = default;
 	game_world_room(const game_world_room&) = delete;
@@ -69,6 +83,9 @@ public:
 	int make_index(int x, int y) const;
 
 	bool is_tile_colliding_with(no::vector2f position) const;
+	bool is_position_within(no::vector2f position) const;
+	bool is_connected_to(const game_world_room& room) const;
+	door_connection* find_colliding_door(no::vector2f position, no::vector2f size);
 
 private:
 
@@ -108,44 +125,19 @@ public:
 
 	bool test_tile_mask(const game_world_room& room, no::vector2f position) const;
 
-	bool is_x_empty(no::vector2f position, no::vector2f size, float x_direction, float speed);
-	bool is_y_empty(no::vector2f position, no::vector2f size, float y_direction, float speed);
-	no::vector2f get_allowed_movement_delta(bool left, bool right, bool up, bool down, float speed, no::vector2f position, no::vector2f size);
+	bool is_x_empty(game_world_room* room, no::vector2f position, no::vector2f size, float x_direction, float speed);
+	bool is_y_empty(game_world_room* room, no::vector2f position, no::vector2f size, float y_direction, float speed);
+	no::vector2f get_allowed_movement_delta(game_world_room* room, bool left, bool right, bool up, bool down, float speed, no::vector2f position, no::vector2f size);
 
 	game_world_room* find_room(no::vector2f position);
+
+	game_world_room* find_left_neighbour_room(game_world_room& room);
+	game_world_room* find_right_neighbour_room(game_world_room& room);
+	game_world_room* find_top_neighbour_room(game_world_room& room);
+	game_world_room* find_bottom_neighbour_room(game_world_room& room);
 
 private:
 	
 	tileset_collision_mask collision;
-
-};
-
-class game_world_generator {
-public:
-
-	game_world_generator(unsigned long long seed);
-
-	void generate(game_world& world);
-
-private:
-
-	void make_tile(game_world_room& room, game_world_tile& tile, int x, int y);
-	void make_room(game_world& world);
-	void make_border(game_world_room& room, game_world_tile tile) const;
-	void place_room_right(game_world& world, game_world_room& room);
-	void place_room_bottom(game_world& world, game_world_room& room);
-	void place_room_top(game_world& world, game_world_room& room);
-
-	void place_doors(game_world_room& room);
-	void connect_doors(game_world_room& from, game_world_room& to);
-
-	int next_room_direction();
-	bool will_room_collide(game_world& world, int left, int top, int width, int height);
-
-	no::random_number_generator random;
-	no::vector2i world_size; // Tiles per row and column of the world.
-	no::vector2i last_world_size_delta;
-	int vertical{ 0 };
-	int horizontal_since_vertical_change{ 0 };
 
 };

@@ -4,6 +4,7 @@
 #include "world.hpp"
 #include "player_controller.hpp"
 #include "renderer.hpp"
+#include "generator.hpp"
 
 class game_state;
 
@@ -14,6 +15,7 @@ public:
 	//float zoom{ 1.0f };
 	float zoom{ 0.25f };
 	bool god_mode{ false };
+	bool show_all_rooms{ false };
 
 	game_world world;
 
