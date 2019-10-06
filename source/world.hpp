@@ -42,6 +42,7 @@ public:
 
 	game_world* world{ nullptr };
 	no::vector2i index;
+	std::vector<no::vector2i> doors;
 	
 	game_world_room() = default;
 	game_world_room(const game_world_room&) = delete;
@@ -134,6 +135,9 @@ private:
 	void place_room_right(game_world& world, game_world_room& room);
 	void place_room_bottom(game_world& world, game_world_room& room);
 	void place_room_top(game_world& world, game_world_room& room);
+
+	void place_doors(game_world_room& room);
+	void connect_doors(game_world_room& from, game_world_room& to);
 
 	int next_room_direction();
 	bool will_room_collide(game_world& world, int left, int top, int width, int height);

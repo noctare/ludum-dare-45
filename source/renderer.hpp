@@ -41,6 +41,7 @@ private:
 
 	struct rendered_room {
 		no::quad_array<no::sprite_vertex, unsigned short> shape;
+		no::quad_array<no::sprite_vertex, unsigned short> doors;
 		const game_world_room* room{ nullptr };
 	};
 

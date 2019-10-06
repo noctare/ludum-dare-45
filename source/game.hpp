@@ -29,5 +29,6 @@ private:
 
 	player_controller controller;
 	game_renderer renderer;
+	game_world_generator generator;
 
 };

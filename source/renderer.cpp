@@ -65,7 +65,10 @@ void game_renderer::render_room(const game_world_room& room) {
 	no::vector2f uv_step{ 32.0f / tileset_size };
 	auto& rendered_room{ rendered_rooms.emplace_back() };
 	rendered_room.room = &room;
-	auto& shape{ rendered_room.shape };
+	no::sprite_vertex top_left;
+	no::sprite_vertex top_right;
+	no::sprite_vertex bottom_right;
+	no::sprite_vertex bottom_left;
 	for (int x{ room.left() }; x < room.right(); x++) {
 		for (int y{ room.top() }; y < room.bottom(); y++) {
 			const int local_x{ x - room.index.x };
@@ -74,10 +77,6 @@ void game_renderer::render_room(const game_world_room& room) {
 			const auto auto_uv{ game.world.autotiler.get_uv(tile) };
 			const no::vector2f uv_1{ auto_uv.to<float>() / tileset_size };
 			const no::vector2f uv_2{ uv_1 + uv_step };
-			no::sprite_vertex top_left;
-			no::sprite_vertex top_right;
-			no::sprite_vertex bottom_right;
-			no::sprite_vertex bottom_left;
 			top_left.position = { static_cast<float>(x), static_cast<float>(y) };
 			top_right.position = { static_cast<float>(x + 1), static_cast<float>(y) };
 			bottom_right.position = { static_cast<float>(x + 1), static_cast<float>(y + 1) };
@@ -86,10 +85,38 @@ void game_renderer::render_room(const game_world_room& room) {
 			top_right.tex_coords = { uv_2.x, uv_1.y };
 			bottom_left.tex_coords = { uv_1.x, uv_2.y };
 			bottom_right.tex_coords = uv_2;
-			shape.append(top_left, top_right, bottom_right, bottom_left);
+			rendered_room.shape.append(top_left, top_right, bottom_right, bottom_left);
 		}
 	}
-	shape.refresh();
+	for (const auto door : room.doors) {
+		const int x{ room.left() + door.x };
+		const int y{ room.top() + door.y };
+		top_left.position = { static_cast<float>(x), static_cast<float>(y) };
+		top_right.position = { static_cast<float>(x + 1), static_cast<float>(y) };
+		bottom_right.position = { static_cast<float>(x + 1), static_cast<float>(y + 1) };
+		bottom_left.position = { static_cast<float>(x), static_cast<float>(y + 1) };
+		no::vector2f uv_1;
+		if (door.x == 1) {
+			uv_1 = { 128.0f, 0.0f }; // left
+		} else if (door.y == 1) {
+			uv_1 = { 64.0f, 0.0f }; // top
+		} else if (door.x == room.width() - 2) {
+			uv_1 = { 160.0f, 0.0f }; // right
+		} else if (door.y == room.height() - 2) {
+			uv_1 = { 96.0f, 0.0f }; // bottom
+		}
+		uv_1 /= tileset_size;
+		const no::vector2f uv_2{ uv_1 + uv_step };
+		top_left.tex_coords = uv_1;
+		top_right.tex_coords = { uv_2.x, uv_1.y };
+		bottom_left.tex_coords = { uv_1.x, uv_2.y };
+		bottom_right.tex_coords = uv_2;
+		rendered_room.doors.append(top_left, top_right, bottom_right, bottom_left);
+	}
+	rendered_room.shape.refresh();
+	if (!room.doors.empty()) {
+		rendered_room.doors.refresh();
+	}
 }
 
 void game_renderer::hide_room(const game_world_room& room) {
@@ -117,6 +144,8 @@ void game_renderer::draw_world(const game_world& world) {
 	for (const auto& room : rendered_rooms) {
 		room.shape.bind();
 		room.shape.draw();
+		room.doors.bind();
+		room.doors.draw();
 	}
 	draw_player(world.player);
 }

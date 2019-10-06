@@ -5,11 +5,10 @@
 #include "assets.hpp"
 #include <ctime>
 
-game_state::game_state() : renderer{ *this } {
+game_state::game_state() : renderer{ *this }, generator{ static_cast<unsigned long long>(std::time(nullptr)) } {
 	no::imgui::create(window());
 	set_synchronization(no::draw_synchronization::if_updated);
 	window().set_swap_interval(no::swap_interval::immediate);
-	game_world_generator generator{ static_cast<unsigned long long>(std::time(nullptr)) };
 	generator.generate(world);
 	world.player.transform.position = 128.0f;
 	world.player.transform.scale = 16.0f;
@@ -58,6 +57,14 @@ void game_state::update() {
 		}
 		if (ImGui::MenuItem("Zoom (5%)")) {
 			zoom = 0.05f;
+		}
+		ImGui::PopItemWidth();
+		ImGui::EndMenu();
+	}
+	if (ImGui::BeginMenu("World")) {
+		ImGui::PushItemWidth(360.0f);
+		if (ImGui::MenuItem("Generate room")) {
+			generator.generate(world);
 		}
 		ImGui::PopItemWidth();
 		ImGui::EndMenu();

@@ -58,6 +58,7 @@ game_world_room::game_world_room(game_world_room&& that) noexcept : tiles{ std::
 	std::swap(index, that.index);
 	std::swap(size, that.size);
 	std::swap(world, that.world);
+	std::swap(doors, that.doors);
 }
 
 void game_world_room::resize(int width, int height) {
@@ -245,7 +246,7 @@ game_world_generator::game_world_generator(unsigned long long seed) : random{ se
 }
 
 void game_world_generator::generate(game_world& world) {
-	for (int i{ 0 }; i < 100; i++) {
+	for (int i{ 0 }; i < 1; i++) {
 		make_room(world);
 	}
 }
@@ -319,6 +320,7 @@ void game_world_generator::make_room(game_world& world) {
 			}
 		}
 	}
+	place_doors(room);
 	world_size.x = room.index.x + room.width();
 	world_size.y = room.index.y + room.height();
 	last_world_size_delta = { room.width(), room.height() };
@@ -338,7 +340,7 @@ void game_world_generator::make_border(game_world_room& room, game_world_tile ti
 void game_world_generator::place_room_right(game_world& world, game_world_room& room) {
 	const int width{ random.next<int>(10, 20) };
 	const int height{ random.next<int>(10, 20) };
-	int left{ world_size.x + 1 };
+	int left{ world_size.x };
 	const int top{ world_size.y - last_world_size_delta.y / 2 - height / 2 };
 	while (will_room_collide(world, left, top, width, height)) {
 		left++;
@@ -351,7 +353,7 @@ void game_world_generator::place_room_bottom(game_world& world, game_world_room&
 	const int width{ random.next<int>(10, 20) };
 	const int height{ random.next<int>(10, 20) };
 	const int left{ world_size.x - last_world_size_delta.x };
-	int top{ world_size.y + 1 };
+	int top{ world_size.y };
 	while (will_room_collide(world, left, top, width, height)) {
 		top++;
 	}
@@ -364,7 +366,7 @@ void game_world_generator::place_room_top(game_world& world, game_world_room& ro
 	const int height{ random.next<int>(10, 20) };
 	const int mid_height{ std::max(0, world_size.y / 2 - height / 2) };
 	const int left{ world_size.x - last_world_size_delta.x };
-	int top{ world_size.y - last_world_size_delta.y - height - 1 };
+	int top{ world_size.y - last_world_size_delta.y - height };
 	while (top > 0 && will_room_collide(world, left, top, width, height)) {
 		top--;
 	}
@@ -374,6 +376,63 @@ void game_world_generator::place_room_top(game_world& world, game_world_room& ro
 	}
 	room.index = { left, top };
 	room.resize(width, height);
+}
+
+void game_world_generator::place_doors(game_world_room& room) {
+	bool left_free{ room.index.x > 100 };
+	bool top_free{ room.index.y > 100 };
+	int count{ 0 };
+	if (left_free) {
+		if (random.chance(0.5f)) {
+			int y{ room.height() / 6 + random.next<int>(room.height() / 2) };
+			while (y < room.height() - 2 && !room.get_tile(3, y).is_only(tile_type::floor)) {
+				y++;
+			}
+			if (y < room.height() - 2) {
+				room.doors.emplace_back(1, y);
+				count++;
+			}
+		}
+	}
+	if (top_free) {
+		if (random.chance(0.5f)) {
+			int x{ room.width() / 6 + random.next<int>(room.width() / 2) };
+			while (x < room.width() - 2 && !room.get_tile(x, 3).is_only(tile_type::floor)) {
+				x++;
+			}
+			if (x < room.width() - 2) {
+				room.doors.emplace_back(x, 1);
+				count++;
+			}
+		}
+	}
+	if (random.chance(0.5f)) {
+		int x{ room.width() / 6 + random.next<int>(room.width() / 2) };
+		while (x < room.width() - 2 && !room.get_tile(x, room.height() - 3).is_only(tile_type::floor)) {
+			x++;
+		}
+		if (x < room.width() - 2) {
+			room.doors.emplace_back(x, room.height() - 2);
+			count++;
+		}
+	}
+	if (count == 0 || random.chance(0.5f)) {
+		int y{ room.height() / 6 + random.next<int>(room.height() / 2) };
+		while (y < room.height() - 2 && !room.get_tile(room.width() - 3, y).is_only(tile_type::floor)) {
+			y++;
+		}
+		if (y < room.height() - 2) {
+			room.doors.emplace_back(room.width() - 2, y);
+			count++;
+		}
+	}
+	if (count == 0) {
+		place_doors(room); // try again...
+	}
+}
+
+void game_world_generator::connect_doors(game_world_room& from_room, game_world_room& to_room) {
+	
 }
 
 int game_world_generator::next_room_direction() {
@@ -389,13 +448,13 @@ int game_world_generator::next_room_direction() {
 
 bool game_world_generator::will_room_collide(game_world& world, int left, int top, int width, int height) {
 	for (const auto& room : world.rooms) {
-		if (room.index.y > top + height) {
+		if (room.index.y >= top + height) {
 			continue;
-		} else if (top > room.index.y + room.height()) {
+		} else if (top >= room.index.y + room.height()) {
 			continue;
-		} else if (left + width > room.index.x + room.width()) {
+		} else if (room.index.x >= left + width) {
 			continue;
-		} else if (room.index.x > left + width) {
+		} else if (left >= room.index.x + room.width()) {
 			continue;
 		} else {
 			return true;
