@@ -10,6 +10,11 @@ void game_world_generator::generate(game_world& world) {
 		make_room(world);
 	}
 	place_doors(world);
+	for (auto& room : world.rooms) {
+		while (room.doors.size() < 2) {
+			place_doors(world);
+		}
+	}
 }
 
 void game_world_generator::make_tile(game_world_room& room, game_world_tile& tile, int x, int y) {
@@ -139,52 +144,67 @@ void game_world_generator::place_room_top(game_world& world, game_world_room& ro
 }
 
 std::optional<no::vector2i> game_world_generator::try_place_door_left(game_world_room& room) {
-	int y{ room.height() / 6 + random.next<int>(room.height() / 2) };
-	while (y < room.height() - 2 && !room.get_tile(3, y).is_only(tile_type::floor) && !room.get_tile(4, y).is_only(tile_type::floor)) {
-		y++;
+	std::vector<int> possible_y;
+	for (int y{ 1 }; y < room.height() - 2; y++) {
+		if (room.get_tile(3, y).is_only(tile_type::floor) && room.get_tile(2, y).is_only(tile_type::floor)) {
+			possible_y.push_back(y);
+		}
 	}
-	if (y < room.height() - 2) {
-		return no::vector2i{ 1, y };
+	if (possible_y.empty()) {
+		return {};
 	}
-	return {};
+	int index{ random.next<int>(static_cast<int>(possible_y.size()) - 1) };
+	return no::vector2i{ 1, possible_y[index] };
 }
 
 std::optional<no::vector2i> game_world_generator::try_place_door_right(game_world_room& room) {
-	int y{ room.height() / 6 + random.next<int>(room.height() / 2) };
-	while (y < room.height() - 2 && !room.get_tile(room.width() - 3, y).is_only(tile_type::floor) && !room.get_tile(room.width() - 4, y).is_only(tile_type::floor)) {
-		y++;
+	std::vector<int> possible_y;
+	for (int y{ 1 }; y < room.height() - 2; y++) {
+		if (room.get_tile(room.width() - 3, y).is_only(tile_type::floor)) {
+			possible_y.push_back(y);
+		}
 	}
-	if (y < room.height() - 2) {
-		return no::vector2i{ room.width() - 2, y };
+	if (possible_y.empty()) {
+		return {};
 	}
-	return {};
+	int index{ random.next<int>(static_cast<int>(possible_y.size()) - 1) };
+	return no::vector2i{ room.width() - 2, possible_y[index] };
 }
 
 std::optional<no::vector2i> game_world_generator::try_place_door_top(game_world_room& room) {
-	int x{ room.width() / 6 + random.next<int>(room.width() / 2) };
-	while (x < room.width() - 2 && !room.get_tile(x, 3).is_only(tile_type::floor) && !room.get_tile(x, 4).is_only(tile_type::floor)) {
-		x++;
+	std::vector<int> possible_x;
+	for (int x{ 1 }; x < room.width() - 2; x++) {
+		if (room.get_tile(x, 3).is_only(tile_type::floor) && room.get_tile(x, 2).is_only(tile_type::floor)) {
+			possible_x.push_back(x);
+		}
 	}
-	if (x < room.width() - 2) {
-		return no::vector2i{ x, 1 };
+	if (possible_x.empty()) {
+		return {};
 	}
-	return {};
+	int index{ random.next<int>(static_cast<int>(possible_x.size()) - 1) };
+	return no::vector2i{ possible_x[index], 1 };
 }
 
 std::optional<no::vector2i> game_world_generator::try_place_door_bottom(game_world_room& room) {
-	int x{ room.width() / 6 + random.next<int>(room.width() / 2) };
-	while (x < room.width() - 2 && !room.get_tile(x, room.height() - 3).is_only(tile_type::floor) && !room.get_tile(x, room.height() - 4).is_only(tile_type::floor)) {
-		x++;
+	std::vector<int> possible_x;
+	for (int x{ 1 }; x < room.width() - 2; x++) {
+		if (room.get_tile(x, room.height() - 3).is_only(tile_type::floor)) {
+			possible_x.push_back(x);
+		}
 	}
-	if (x < room.width() - 2) {
-		return no::vector2i{ x, room.height() - 2 };
+	if (possible_x.empty()) {
+		return {};
 	}
-	return {};
+	int index{ random.next<int>(static_cast<int>(possible_x.size()) - 1) };
+	return no::vector2i{ possible_x[index], room.height() - 2 };
 }
 
 void game_world_generator::place_doors(game_world& world) {
 	for (auto& room : world.rooms) {
-		if (auto left{ world.find_left_neighbour_room(room) }; left && !left->is_connected_to(room)) {
+		std::function<bool(game_world_room&)> allow_if_unconnected = [&](game_world_room& neighbour) {
+			return !neighbour.is_connected_to(room);
+		};
+		if (auto left{ world.find_left_neighbour_room(room, allow_if_unconnected) }) {
 			if (auto from_tile{ try_place_door_left(room) }) {
 				if (auto to_tile{ try_place_door_right(*left) }) {
 					room.add_door(from_tile.value(), left, to_tile.value());
@@ -192,7 +212,7 @@ void game_world_generator::place_doors(game_world& world) {
 				}
 			}
 		}
-		if (auto right{ world.find_right_neighbour_room(room) }; right && !right->is_connected_to(room)) {
+		if (auto right{ world.find_right_neighbour_room(room, allow_if_unconnected) }) {
 			if (auto from_tile{ try_place_door_right(room) }) {
 				if (auto to_tile{ try_place_door_left(*right) }) {
 					room.add_door(from_tile.value(), right, to_tile.value());
@@ -200,7 +220,7 @@ void game_world_generator::place_doors(game_world& world) {
 				}
 			}
 		}
-		if (auto top{ world.find_top_neighbour_room(room) }; top && !top->is_connected_to(room)) {
+		if (auto top{ world.find_top_neighbour_room(room, allow_if_unconnected) }) {
 			if (auto from_tile{ try_place_door_top(room) }) {
 				if (auto to_tile{ try_place_door_bottom(*top) }) {
 					room.add_door(from_tile.value(), top, to_tile.value());
@@ -208,7 +228,7 @@ void game_world_generator::place_doors(game_world& world) {
 				}
 			}
 		}
-		if (auto bottom{ world.find_bottom_neighbour_room(room) }; bottom && !bottom->is_connected_to(room)) {
+		if (auto bottom{ world.find_bottom_neighbour_room(room, allow_if_unconnected) }) {
 			if (auto from_tile{ try_place_door_bottom(room) }) {
 				if (auto to_tile{ try_place_door_top(*bottom) }) {
 					room.add_door(from_tile.value(), bottom, to_tile.value());

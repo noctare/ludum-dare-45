@@ -32,16 +32,16 @@ bool player_controller::try_enter_door() {
 	if (auto door{ room->find_colliding_door(position, player_object::collision::size) }) {
 		player.transform.position = door->to_tile.to<float>() * tile_size_f + door->to_room->index.to<float>() * tile_size_f;
 		if (door->to_tile.x == 1) {
-			player.transform.position.x += tile_size_f;
+			player.transform.position.x += tile_size / 2.0f;
 		}
 		if (door->to_tile.y == 1) {
-			player.transform.position.y += tile_size_f;
+			player.transform.position.y += tile_size_f / 2.0f;
 		}
 		if (door->to_tile.x == room->width() - 2) {
-			player.transform.position.x -= tile_size_f;
+			player.transform.position.x -= tile_size_f * 2.0f;
 		}
 		if (door->to_tile.y == room->height() - 2) {
-			player.transform.position.y -= tile_size_f;
+			player.transform.position.y -= tile_size_f * 2.0f;
 		}
 	}
 	return true;

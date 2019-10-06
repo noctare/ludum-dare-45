@@ -219,7 +219,7 @@ game_world_room* game_world::find_room(no::vector2f position)  {
 	return nullptr;
 }
 
-game_world_room* game_world::find_left_neighbour_room(game_world_room& room) {
+game_world_room* game_world::find_left_neighbour_room(game_world_room& room, const std::function<bool(game_world_room&)>& allow) {
 	game_world_room* closest_neighbour{ nullptr };
 	for (auto& potential_neighbour : rooms) {
 		if (&potential_neighbour != &room) {
@@ -231,6 +231,9 @@ game_world_room* game_world::find_left_neighbour_room(game_world_room& room) {
 			}
 			if (room.index.y > potential_neighbour.index.y + potential_neighbour.height()) {
 				continue; // is too far up
+			}
+			if (!allow(potential_neighbour)) {
+				continue;
 			}
 			if (closest_neighbour) {
 				if (potential_neighbour.index.x > closest_neighbour->index.x) {
@@ -244,7 +247,7 @@ game_world_room* game_world::find_left_neighbour_room(game_world_room& room) {
 	return closest_neighbour;
 }
 
-game_world_room* game_world::find_right_neighbour_room(game_world_room& room) {
+game_world_room* game_world::find_right_neighbour_room(game_world_room& room, const std::function<bool(game_world_room&)>& allow) {
 	game_world_room* closest_neighbour{ nullptr };
 	for (auto& potential_neighbour : rooms) {
 		if (&potential_neighbour != &room) {
@@ -256,6 +259,9 @@ game_world_room* game_world::find_right_neighbour_room(game_world_room& room) {
 			}
 			if (room.index.y > potential_neighbour.index.y + potential_neighbour.height()) {
 				continue; // is too far up
+			}
+			if (!allow(potential_neighbour)) {
+				continue;
 			}
 			if (closest_neighbour) {
 				if (closest_neighbour->index.x > potential_neighbour.index.x) {
@@ -269,7 +275,7 @@ game_world_room* game_world::find_right_neighbour_room(game_world_room& room) {
 	return closest_neighbour;
 }
 
-game_world_room* game_world::find_top_neighbour_room(game_world_room& room) {
+game_world_room* game_world::find_top_neighbour_room(game_world_room& room, const std::function<bool(game_world_room&)>& allow) {
 	game_world_room* closest_neighbour{ nullptr };
 	for (auto& potential_neighbour : rooms) {
 		if (&potential_neighbour != &room) {
@@ -281,6 +287,9 @@ game_world_room* game_world::find_top_neighbour_room(game_world_room& room) {
 			}
 			if (potential_neighbour.index.y > room.index.y + room.height()) {
 				continue; // is too far below
+			}
+			if (!allow(potential_neighbour)) {
+				continue;
 			}
 			if (closest_neighbour) {
 				if (potential_neighbour.index.y > closest_neighbour->index.y) {
@@ -294,7 +303,7 @@ game_world_room* game_world::find_top_neighbour_room(game_world_room& room) {
 	return closest_neighbour;
 }
 
-game_world_room* game_world::find_bottom_neighbour_room(game_world_room& room) {
+game_world_room* game_world::find_bottom_neighbour_room(game_world_room& room, const std::function<bool(game_world_room&)>& allow) {
 	game_world_room* closest_neighbour{ nullptr };
 	for (auto& potential_neighbour : rooms) {
 		if (&potential_neighbour != &room) {
@@ -306,6 +315,9 @@ game_world_room* game_world::find_bottom_neighbour_room(game_world_room& room) {
 			}
 			if (room.index.y > potential_neighbour.index.y + potential_neighbour.height()) {
 				continue; // is too far up
+			}
+			if (!allow(potential_neighbour)) {
+				continue;
 			}
 			if (closest_neighbour) {
 				if (closest_neighbour->index.y > potential_neighbour.index.y) {

@@ -131,10 +131,10 @@ public:
 
 	game_world_room* find_room(no::vector2f position);
 
-	game_world_room* find_left_neighbour_room(game_world_room& room);
-	game_world_room* find_right_neighbour_room(game_world_room& room);
-	game_world_room* find_top_neighbour_room(game_world_room& room);
-	game_world_room* find_bottom_neighbour_room(game_world_room& room);
+	game_world_room* find_left_neighbour_room(game_world_room& room, const std::function<bool(game_world_room&)>& allow);
+	game_world_room* find_right_neighbour_room(game_world_room& room, const std::function<bool(game_world_room&)>& allow);
+	game_world_room* find_top_neighbour_room(game_world_room& room, const std::function<bool(game_world_room&)>& allow);
+	game_world_room* find_bottom_neighbour_room(game_world_room& room, const std::function<bool(game_world_room&)>& allow);
 
 private:
 	
