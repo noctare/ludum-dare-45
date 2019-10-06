@@ -4,61 +4,14 @@
 #include "window.hpp"
 #include "surface.hpp"
 
-class world_autotiler {
-public:
+constexpr no::vector4f player_uv_idle[2]{
+	{ 0.0f, 0.0f / 8.0f, 1.0f, 1.0f / 8.0f },
+	{ 0.0f, 4.0f / 8.0f, 1.0f, 1.0f / 8.0f }
+};
 
-	std::unordered_map<unsigned int, no::vector2i> uv;
-
-	world_autotiler() {
-		load_main_tiles();
-		load_group(tile_type::wall, tile_type::floor, 0, 1);
-	}
-
-	no::vector2i get_uv(const game_world_tile& tile) const {
-		if (const auto it{ uv.find(tile.get_uv_index()) }; it != uv.end()) {
-			return it->second * tile_size;
-		} else {
-			return 0;
-		}
-	}
-
-	void load_main_tiles() {
-		for (unsigned char i{ 0 }; i < tile_type::total_types; i++) {
-			const game_world_tile tile{ i };
-			uv[tile.get_uv_index()] = { i, 0 };
-		}
-	}
-
-	void load_tile(unsigned char top_left, unsigned char top_right, unsigned char bottom_left, unsigned char bottom_right, int x, int y) {
-		game_world_tile tile;
-		tile.corner[0] = top_left;
-		tile.corner[1] = top_right;
-		tile.corner[2] = bottom_left;
-		tile.corner[3] = bottom_right;
-		uv[tile.get_uv_index()] = { x, y };
-	}
-
-	void load_group(int primary, int sub, int x, int y) {
-		load_tile(primary, primary, primary, sub, x, y);
-		load_tile(primary, primary, sub, sub, x + 1, y);
-		load_tile(primary, primary, sub, primary, x + 2, y);
-		load_tile(primary, sub, primary, primary, x, y + 1);
-		load_tile(sub, sub, primary, primary, x + 1, y + 1);
-		load_tile(sub, primary, primary, primary, x + 2, y + 1);
-		y += 2;
-		load_tile(sub, sub, sub, primary, x, y);
-		load_tile(sub, sub, primary, primary, x + 1, y);
-		load_tile(sub, sub, primary, sub, x + 2, y);
-		load_tile(sub, primary, sub, sub, x, y + 1);
-		load_tile(primary, primary, sub, sub, x + 1, y + 1);
-		load_tile(primary, sub, sub, sub, x + 2, y + 1);
-		y += 2;
-		load_tile(sub, primary, primary, sub, x, y);
-		load_tile(primary, sub, primary, sub, x + 2, y);
-		load_tile(primary, sub, sub, primary, x, y + 1);
-		load_tile(sub, primary, sub, primary, x + 2, y + 1);
-	}
-
+constexpr no::vector4f player_uv_walk[2]{
+	{ 0.0f, 1.0f / 8.0f, 1.0f, 1.0f / 8.0f },
+	{ 0.0f, 5.0f / 8.0f, 1.0f, 1.0f / 8.0f }
 };
 
 game_renderer::game_renderer(game_state& game) : game{ game } {
@@ -66,22 +19,29 @@ game_renderer::game_renderer(game_state& game) : game{ game } {
 	blank_texture = no::create_texture({ 2, 2, no::pixel_format::rgba, 0xFFFFFFFF });
 	room_transform.scale = static_cast<float>(tile_size);
 	tiles_texture = no::require_texture("tiles");
-	//animation.frames = 6;
-	//animation.set_tex_coords(0.0f, { 1.0f, 1.0f / 5.0f });
+	player_texture = no::require_texture("player");
+	player_animation.frames = 4;
 }
 
 game_renderer::~game_renderer() {
 	no::delete_texture(blank_texture);
 	no::release_texture("tiles");
+	no::release_texture("player");
+	no::release_shader("sprite");
 }
 
 void game_renderer::update() {
 	camera.zoom = game.zoom;
 	camera.transform.scale = game.window().size().to<float>();
-	if (!game.god_mode) {
-		camera.transform.position = game.world.player.transform.position - camera.transform.scale / 2.0f;
+	if (game.god_mode) {
+		camera.target = nullptr;
+	} else {
+		camera.target = &game.world.player.transform;
+		camera.target_chase_speed = 0.075f;
+		camera.target_chase_aspect = { 2.0f, 2.0f };
 	}
-	//animation.update(1.0f / 60.0f);
+	camera.update();
+	player_animation.update(1.0f / 60.0f);
 }
 
 void game_renderer::draw() {
@@ -103,7 +63,6 @@ void game_renderer::render_room(const game_world_room& room) {
 	}
 	no::vector2f tileset_size{ no::texture_size(tiles_texture).to<float>() };
 	no::vector2f uv_step{ 32.0f / tileset_size };
-	world_autotiler autotiler;
 	auto& rendered_room{ rendered_rooms.emplace_back() };
 	rendered_room.room = &room;
 	auto& shape{ rendered_room.shape };
@@ -112,7 +71,7 @@ void game_renderer::render_room(const game_world_room& room) {
 			const int local_x{ x - room.index.x };
 			const int local_y{ y - room.index.y };
 			const auto& tile{ room.tile_at(local_x, local_y) };
-			const auto auto_uv{ autotiler.get_uv(tile) };
+			const auto auto_uv{ game.world.autotiler.get_uv(tile) };
 			const no::vector2f uv_1{ auto_uv.to<float>() / tileset_size };
 			const no::vector2f uv_2{ uv_1 + uv_step };
 			no::sprite_vertex top_left;
@@ -151,7 +110,7 @@ bool game_renderer::is_rendered(const game_world_room& room) const {
 	return false;
 }
 
-void game_renderer::draw_world(const game_world& world) const {
+void game_renderer::draw_world(const game_world& world) {
 	no::get_shader_variable("color").set(no::vector4f{ 1.0f });
 	no::bind_texture(tiles_texture);
 	no::set_shader_model(room_transform);
@@ -159,6 +118,22 @@ void game_renderer::draw_world(const game_world& world) const {
 		room.shape.bind();
 		room.shape.draw();
 	}
-	no::bind_texture(blank_texture);
-	//animation.draw(world.player.transform.position, { texture_size.x / 6.0f, texture_size.y / 5.0f });
+	draw_player(world.player);
+}
+
+void game_renderer::draw_player(const player_object& player) {
+	no::bind_texture(player_texture);
+	const int direction_index{ player.facing_down ? 1 : 0 };
+	if (player.is_moving) {
+		player_animation.set_tex_coords(player_uv_walk[direction_index].xy, player_uv_walk[direction_index].zw);
+	} else {
+		player_animation.set_tex_coords(player_uv_idle[direction_index].xy, player_uv_idle[direction_index].zw);
+	}
+	no::vector2f size{ no::texture_size(player_texture).to<float>() / no::vector2f{ 4.0f, 8.0f } };
+	no::vector2f position{ player.transform.position };
+	if (!player.facing_right) {
+		position.x += size.x;
+		size.x = -size.x;
+	}
+	player_animation.draw(position, size);
 }

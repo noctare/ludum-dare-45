@@ -6,6 +6,7 @@
 class game_state;
 class game_world;
 class game_world_room;
+class player_object;
 
 class game_renderer {
 public:
@@ -22,16 +23,19 @@ public:
 	void render_room(const game_world_room& room);
 	void hide_room(const game_world_room& room);
 	bool is_rendered(const game_world_room& room) const;
-	void draw_world(const game_world& world) const;
+	void draw_world(const game_world& world);
+	void draw_player(const player_object& player);
 
 private:
 
 	game_state& game;
-	no::sprite_animation animation;
 	int shader{ -1 };
 	no::rectangle rectangle;
 	int blank_texture{ -1 };
 	int tiles_texture{ -1 };
+
+	int player_texture{ -1 };
+	no::sprite_animation player_animation;
 
 	no::transform2 room_transform;
 

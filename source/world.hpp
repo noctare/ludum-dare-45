@@ -2,6 +2,9 @@
 
 #include "player.hpp"
 #include "math.hpp"
+#include "autotile.hpp"
+
+class game_world;
 
 constexpr int tile_size{ 32 };
 
@@ -11,7 +14,8 @@ constexpr unsigned char wall{ 1 };
 constexpr unsigned char total_types{ 2 };
 }
 
-struct game_world_tile {
+class game_world_tile {
+public:
 
 	unsigned char corner[4]{};
 
@@ -36,6 +40,7 @@ struct game_world_tile {
 class game_world_room {
 public:
 
+	game_world* world{ nullptr };
 	no::vector2i index;
 	
 	game_world_room() = default;
@@ -62,7 +67,7 @@ public:
 
 	int make_index(int x, int y) const;
 
-	bool is_colliding_with_tile(no::vector2f position) const;
+	bool is_tile_colliding_with(no::vector2f position) const;
 
 private:
 
@@ -71,13 +76,46 @@ private:
 
 };
 
+class tileset_collision_mask {
+public:
+
+	int width{ 0 };
+	std::vector<bool> mask;
+
+	bool is_solid(int tile_x, int tile_y, int x, int y) const {
+		const int offset{ tile_y * width + tile_x };
+		const int index{ offset + y * width + x };
+		if (index < 0 || index >= static_cast<int>(mask.size())) {
+			return false;
+		} else {
+			return mask[index];
+		}
+	}
+
+};
+
 class game_world {
 public:
 
+	world_autotiler autotiler;
 	player_object player;
 	std::vector<game_world_room> rooms;
 
+	game_world();
+
 	void update();
+
+	bool test_tile_mask(const game_world_room& room, no::vector2f position) const;
+
+	bool is_x_empty(no::vector2f position, no::vector2f size, float x_direction, float speed);
+	bool is_y_empty(no::vector2f position, no::vector2f size, float y_direction, float speed);
+	no::vector2f get_allowed_movement_delta(bool left, bool right, bool up, bool down, float speed, no::vector2f position, no::vector2f size);
+
+	game_world_room* find_room(no::vector2f position);
+
+private:
+	
+	tileset_collision_mask collision;
 
 };
 

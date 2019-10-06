@@ -1,6 +1,9 @@
 #include "world.hpp"
 #include "noise.hpp"
+#include "assets.hpp"
+#include "surface.hpp"
 
+#include <filesystem>
 #include <ctime>
 
 game_world_tile::game_world_tile(unsigned char type) {
@@ -54,6 +57,7 @@ void game_world_tile::set_bottom_right(unsigned char type) {
 game_world_room::game_world_room(game_world_room&& that) noexcept : tiles{ std::move(that.tiles) } {
 	std::swap(index, that.index);
 	std::swap(size, that.size);
+	std::swap(world, that.world);
 }
 
 void game_world_room::resize(int width, int height) {
@@ -105,14 +109,128 @@ int game_world_room::make_index(int x, int y) const {
 	return y * width() + x;
 }
 
-bool game_world_room::is_colliding_with_tile(no::vector2f position) const {
-	no::vector2i local_position{ position.to<int>() };
-	local_position -= index * tile_size;
-	local_position -= local_position % tile_size;
-	local_position /= tile_size;
+bool game_world::test_tile_mask(const game_world_room& room, no::vector2f position) const {
+	no::vector2i chunk_position{ room.index * tile_size };
+	no::vector2i tile_index{ position.to<int>() };
+	tile_index -= chunk_position;
+	tile_index -= tile_index % tile_size;
+	tile_index /= tile_size;
+	if (tile_index.x < 0 || tile_index.y < 0 || tile_index.x >= room.width() || tile_index.y >= room.height()) {
+		return false;
+	}
+	no::vector2i uv{ autotiler.get_uv(room.tile_at(tile_index.x, tile_index.y)) };
+	no::vector2i a_pos{ tile_index * tile_size + chunk_position };
+	no::vector2i b_pos{ position.to<int>() };
+	int check_x{ std::abs(a_pos.x - b_pos.x) };
+	int check_y{ std::abs(a_pos.y - b_pos.y) };
+	return collision.is_solid(uv.x, uv.y, check_x, check_y);
+}
 
+bool game_world::is_x_empty(no::vector2f position, no::vector2f size, float x_direction, float speed) {
+	auto room{ find_room(position) };
+	if (!room) {
+		return false;
+	}
+	if (x_direction > 0.0f) {
+		x_direction += size.x;
+	}
+	position.x += x_direction + speed;
+	bool c{ x_direction > 0.0f };
+	if (test_tile_mask(*room, position)) {
+		return false;
+	}
+	position.y += size.y;
+	if (test_tile_mask(*room, position)) {
+		return false;
+	}
+	return true;
+}
 
-	return false;
+bool game_world::is_y_empty(no::vector2f position, no::vector2f size, float y_direction, float speed) {
+	auto room{ find_room(position) };
+	if (!room) {
+		return false;
+	}
+	if (y_direction > 0.0f) {
+		y_direction += size.y;
+	}
+	position.y += y_direction + speed;
+	bool c{ y_direction < 0.0f };
+	if (test_tile_mask(*room, position)) {
+		return false;
+	}
+	position.x += size.x;
+	if (test_tile_mask(*room, position)) {
+		return false;
+	}
+	return true;
+}
+
+no::vector2f game_world::get_allowed_movement_delta(bool left, bool right, bool up, bool down, float speed, no::vector2f position, no::vector2f size) {
+	if (left && right && up && down) {
+		return {};
+	}
+	if (left && right) {
+		if (up || down) {
+			left = false;
+			right = false;
+		} else if (!up && !down) {
+			return {};
+		}
+	}
+	no::vector2f delta;
+	if (left) {
+		if (is_x_empty(position, size, -1.0f, -speed)) {
+			position.x -= speed;
+			delta.x -= speed;
+		}
+		speed /= 2.0f;
+	} else if (right) {
+		if (is_x_empty(position, size, 1.0f, speed)) {
+			position.x += speed;
+			delta.x += speed;
+		}
+		speed /= 2.0f;
+	}
+	if (up) {
+		if (is_y_empty(position, size, -1.0f, -speed)) {
+			position.y -= speed;
+			delta.y -= speed;
+		}
+	}
+	if (down) {
+		if (is_y_empty(position, size, 1.0f, speed)) {
+			position.y += speed;
+			delta.y += speed;
+		}
+	}
+	return delta;
+}
+
+game_world_room* game_world::find_room(no::vector2f position)  {
+	no::vector2i index{ position.to<int>() / tile_size };
+	for (auto& room : rooms) {
+		if (index >= room.index && room.index.x + room.width() > index.x && room.index.y + room.height() > index.y) {
+			return &room;
+		}
+	}
+	return nullptr;
+}
+
+bool game_world_room::is_tile_colliding_with(no::vector2f position) const {
+	return world->test_tile_mask(*this, position);
+}
+
+game_world::game_world() {
+	const no::surface mask{ no::asset_path("textures/collisions.png") };
+	collision.width = mask.width();
+	collision.mask.reserve(mask.count());
+	for (int y{ 0 }; y < mask.height(); y++) {
+		for (int x{ 0 }; x < mask.width(); x++) {
+			collision.mask.push_back(mask.at(x, y) != 0xFFFFFFFF);
+		}
+	}
+	player.world = this;
 }
 
 void game_world::update() {
@@ -145,6 +263,7 @@ void game_world_generator::make_tile(game_world_room& room, game_world_tile& til
 void game_world_generator::make_room(game_world& world) {
 	int direction{ next_room_direction() };
 	auto& room{ world.rooms.emplace_back() };
+	room.world = &world;
 	if (direction > 0 && horizontal_since_vertical_change > 0) {
 		place_room_top(world, room);
 		horizontal_since_vertical_change = 0;
@@ -165,10 +284,10 @@ void game_world_generator::make_room(game_world& world) {
 		for (int y{ 0 }; y < room.height(); y++) {
 			const auto tile{ room.tile_at(x, y) };
 			if (tile.is_only(tile_type::wall)) {
-				bool left_neighbour{ x > 0 };
-				bool top_neighbour{ y > 0 };
-				bool right_neighbour{ x + 1 < room.width() };
-				bool bottom_neighbour{ y + 1 < room.height() };
+				const bool left_neighbour{ x > 0 };
+				const bool top_neighbour{ y > 0 };
+				const bool right_neighbour{ x + 1 < room.width() };
+				const bool bottom_neighbour{ y + 1 < room.height() };
 				if (left_neighbour) {
 					if (top_neighbour) {
 						room.get_tile(x - 1, y - 1).set_bottom_right(tile.get_top_left());
@@ -217,8 +336,8 @@ void game_world_generator::make_border(game_world_room& room, game_world_tile ti
 }
 
 void game_world_generator::place_room_right(game_world& world, game_world_room& room) {
-	const int width{ random.next<int>(20, 60) };
-	const int height{ random.next<int>(15, 40) };
+	const int width{ random.next<int>(10, 20) };
+	const int height{ random.next<int>(10, 20) };
 	int left{ world_size.x + 1 };
 	const int top{ world_size.y - last_world_size_delta.y / 2 - height / 2 };
 	while (will_room_collide(world, left, top, width, height)) {
@@ -229,8 +348,8 @@ void game_world_generator::place_room_right(game_world& world, game_world_room& 
 }
 
 void game_world_generator::place_room_bottom(game_world& world, game_world_room& room) {
-	const int width{ random.next<int>(20, 60) };
-	const int height{ random.next<int>(40, 70) };
+	const int width{ random.next<int>(10, 20) };
+	const int height{ random.next<int>(10, 20) };
 	const int left{ world_size.x - last_world_size_delta.x };
 	int top{ world_size.y + 1 };
 	while (will_room_collide(world, left, top, width, height)) {
@@ -241,8 +360,8 @@ void game_world_generator::place_room_bottom(game_world& world, game_world_room&
 }
 
 void game_world_generator::place_room_top(game_world& world, game_world_room& room) {
-	const int width{ random.next<int>(20, 60) };
-	const int height{ random.next<int>(40, 70) };
+	const int width{ random.next<int>(10, 20) };
+	const int height{ random.next<int>(10, 20) };
 	const int mid_height{ std::max(0, world_size.y / 2 - height / 2) };
 	const int left{ world_size.x - last_world_size_delta.x };
 	int top{ world_size.y - last_world_size_delta.y - height - 1 };
