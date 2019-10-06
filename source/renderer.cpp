@@ -4,29 +4,20 @@
 #include "window.hpp"
 #include "surface.hpp"
 
-constexpr no::vector4f player_uv_idle[2]{
-	{ 0.0f, 0.0f / 8.0f, 1.0f, 1.0f / 8.0f },
-	{ 0.0f, 4.0f / 8.0f, 1.0f, 1.0f / 8.0f }
-};
-
-constexpr no::vector4f player_uv_walk[2]{
-	{ 0.0f, 1.0f / 8.0f, 1.0f, 1.0f / 8.0f },
-	{ 0.0f, 5.0f / 8.0f, 1.0f, 1.0f / 8.0f }
-};
-
 game_renderer::game_renderer(game_state& game) : game{ game } {
 	shader = no::require_shader("sprite");
 	blank_texture = no::create_texture({ 2, 2, no::pixel_format::rgba, 0xFFFFFFFF });
 	room_transform.scale = static_cast<float>(tile_size);
 	tiles_texture = no::require_texture("tiles");
 	player_texture = no::require_texture("player");
-	player_animation.frames = 4;
+	skeleton_texture = no::require_texture("skeleton");
 }
 
 game_renderer::~game_renderer() {
 	no::delete_texture(blank_texture);
 	no::release_texture("tiles");
 	no::release_texture("player");
+	no::release_texture("skeleton");
 	no::release_shader("sprite");
 }
 
@@ -41,7 +32,6 @@ void game_renderer::update() {
 		camera.target_chase_aspect = { 2.0f, 2.0f };
 	}
 	camera.update();
-	player_animation.update(1.0f / 60.0f);
 }
 
 void game_renderer::draw() {
@@ -149,22 +139,30 @@ void game_renderer::draw_world(const game_world& world) {
 			room.doors.draw();
 		}
 	}
+	no::bind_texture(skeleton_texture);
+	for (const auto& room : rendered_rooms) {
+		if (room.room == world.player.room || game.show_all_rooms) {
+			for (const auto& skeleton : room.room->monsters) {
+				no::vector2f size{ no::texture_size(skeleton_texture).to<float>() / no::vector2f{ 4.0f, 7.0f } };
+				no::vector2f position{ skeleton.transform.position };
+				if (!skeleton.facing_right) {
+					position.x += size.x;
+					size.x = -size.x;
+				}
+				skeleton.animation.draw(position, size);
+			}
+		}
+	}
 	draw_player(world.player);
 }
 
 void game_renderer::draw_player(const player_object& player) {
 	no::bind_texture(player_texture);
-	const int direction_index{ player.facing_down ? 1 : 0 };
-	if (player.is_moving) {
-		player_animation.set_tex_coords(player_uv_walk[direction_index].xy, player_uv_walk[direction_index].zw);
-	} else {
-		player_animation.set_tex_coords(player_uv_idle[direction_index].xy, player_uv_idle[direction_index].zw);
-	}
 	no::vector2f size{ no::texture_size(player_texture).to<float>() / no::vector2f{ 4.0f, 8.0f } };
 	no::vector2f position{ player.transform.position };
 	if (!player.facing_right) {
 		position.x += size.x;
 		size.x = -size.x;
 	}
-	player_animation.draw(position, size);
+	player.animation.draw(position, size);
 }

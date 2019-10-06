@@ -11,6 +11,7 @@ public:
 	void register_event_listeners();
 	void update();
 	bool try_enter_door();
+	bool try_attack();
 
 private:
 

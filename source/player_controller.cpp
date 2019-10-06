@@ -8,6 +8,7 @@ player_controller::player_controller(game_state& game) : game{ game } {
 void player_controller::register_event_listeners() {
 	key_press = game.keyboard().press.listen([this](no::key key) {
 		if (key == no::key::space) {
+			try_attack();
 			try_enter_door();
 		}
 	});
@@ -44,5 +45,11 @@ bool player_controller::try_enter_door() {
 			player.transform.position.y -= tile_size_f * 2.0f;
 		}
 	}
+	return true;
+}
+
+bool player_controller::try_attack() {
+	auto& player{ game.world.player };
+	player.attack();
 	return true;
 }

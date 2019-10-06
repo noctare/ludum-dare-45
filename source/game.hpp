@@ -13,7 +13,7 @@ public:
 
 	//float zoom{ 2.0f };
 	//float zoom{ 1.0f };
-	float zoom{ 0.25f };
+	float zoom{ 0.5f };
 	bool god_mode{ false };
 	bool show_all_rooms{ false };
 

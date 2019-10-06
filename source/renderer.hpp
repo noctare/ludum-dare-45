@@ -33,9 +33,8 @@ private:
 	no::rectangle rectangle;
 	int blank_texture{ -1 };
 	int tiles_texture{ -1 };
-
 	int player_texture{ -1 };
-	no::sprite_animation player_animation;
+	int skeleton_texture{ -1 };
 
 	no::transform2 room_transform;
 

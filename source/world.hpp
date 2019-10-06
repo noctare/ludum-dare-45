@@ -1,10 +1,14 @@
 #pragma once
 
 #include "player.hpp"
-#include "math.hpp"
+#include "monster.hpp"
 #include "autotile.hpp"
+#include "math.hpp"
+
+#include <optional>
 
 class game_world;
+class game_state;
 
 constexpr int tile_size{ 32 };
 constexpr float tile_size_f{ 32.0f };
@@ -50,6 +54,8 @@ public:
 	game_world* world{ nullptr };
 	no::vector2i index;
 	std::vector<door_connection> doors;
+	std::vector<monster_object> monsters;
+	bool initial_monsters_spawned{ false };
 
 	void add_door(no::vector2i from, game_world_room* room, no::vector2i to) {
 		auto& door{ doors.emplace_back() };
@@ -81,11 +87,13 @@ public:
 	int height() const;
 
 	int make_index(int x, int y) const;
-
+	
 	bool is_tile_colliding_with(no::vector2f position) const;
 	bool is_position_within(no::vector2f position) const;
 	bool is_connected_to(const game_world_room& room) const;
 	door_connection* find_colliding_door(no::vector2f position, no::vector2f size);
+
+	std::optional<no::vector2f> find_empty_position() const;
 
 private:
 
@@ -118,6 +126,8 @@ public:
 	world_autotiler autotiler;
 	player_object player;
 	std::vector<game_world_room> rooms;
+	game_state* game{ nullptr };
+	no::random_number_generator random;
 
 	game_world();
 

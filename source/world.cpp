@@ -1,6 +1,7 @@
 #include "world.hpp"
 #include "assets.hpp"
 #include "surface.hpp"
+#include "game.hpp"
 
 #include <filesystem>
 
@@ -57,6 +58,8 @@ game_world_room::game_world_room(game_world_room&& that) noexcept : tiles{ std::
 	std::swap(size, that.size);
 	std::swap(world, that.world);
 	std::swap(doors, that.doors);
+	std::swap(monsters, that.monsters);
+	std::swap(initial_monsters_spawned, that.initial_monsters_spawned);
 }
 
 void game_world_room::resize(int width, int height) {
@@ -65,7 +68,21 @@ void game_world_room::resize(int width, int height) {
 }
 
 void game_world_room::update() {
-
+	if (!initial_monsters_spawned) {
+		const int spawn_count{ world->random.next<int>(0, 5) };
+		for (int i{ 0 }; i < spawn_count; i++) {
+			if (auto position{ find_empty_position() }) {
+				auto& monster{ monsters.emplace_back() };
+				monster.world = world;
+				monster.room = this;
+				monster.transform.position = position.value();
+			}
+		}
+		initial_monsters_spawned = true;
+	}
+	for (auto& monster : monsters) {
+		monster.update();
+	}
 }
 
 void game_world_room::set_tile(int x, int y, game_world_tile tile) {
@@ -361,6 +378,29 @@ game_world_room::door_connection* game_world_room::find_colliding_door(no::vecto
 	return nullptr;
 }
 
+std::optional<no::vector2f> game_world_room::find_empty_position() const {
+	for (int attempt{ 0 }; attempt < 100; attempt++) {
+		const int x{ world->random.next<int>(2, width() - 2) };
+		const int y{ world->random.next<int>(2, height() - 2) };
+		if (!tile_at(x, y).is_only(tile_type::floor)) {
+			continue;
+		} else if (!tile_at(x + 1, y).is_only(tile_type::floor)) {
+			continue;
+		} else if (!tile_at(x, y + 1).is_only(tile_type::floor)) {
+			continue;
+		} else if (!tile_at(x - 1, y).is_only(tile_type::floor)) {
+			continue;
+		} else if (!tile_at(x, y - 1).is_only(tile_type::floor)) {
+			continue;
+		}
+		return no::vector2f{
+			static_cast<float>(x * tile_size + index.x * tile_size),
+			static_cast<float>(y * tile_size + index.y * tile_size)
+		};
+	}
+	return {};
+}
+
 game_world::game_world() {
 	const no::surface mask{ no::asset_path("textures/collisions.png") };
 	collision.width = mask.width();
@@ -375,7 +415,11 @@ game_world::game_world() {
 
 void game_world::update() {
 	player.update();
-	for (auto& room : rooms) {
-		room.update();
+	if (!player.room || game->show_all_rooms) {
+		for (auto& room : rooms) {
+			room.update();
+		}
+	} else if (player.room) {
+		player.room->update();
 	}
 }

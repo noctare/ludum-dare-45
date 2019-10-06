@@ -11,9 +11,14 @@ game_state::game_state() : renderer{ *this }, generator{ static_cast<unsigned lo
 	window().set_swap_interval(no::swap_interval::immediate);
 	window().set_clear_color({ 71.0f / 256.0f, 27.0f / 256.0f, 0.0f });
 	generator.generate(world);
-	world.player.transform.position = 128.0f;
-	world.player.transform.scale = 16.0f;
+	world.game = this;
 	controller.register_event_listeners();
+	for (auto& room : world.rooms) {
+		if (const auto position{ room.find_empty_position() }) {
+			world.player.transform.position = position.value();
+			break;
+		}
+	}
 }
 
 game_state::~game_state() {
@@ -77,8 +82,6 @@ void game_state::update() {
 	ImGui::Text("\tPlayer Position: %s", CSTRING(world.player.transform.position));
 	ImGui::EndMainMenuBar();
 	no::imgui::end_frame();
-	renderer.update();
-	world.update();
 	if (god_mode) {
 		renderer.camera.transform.position.y -= keyboard().is_key_down(no::key::w) * 15.0f;
 		renderer.camera.transform.position.x -= keyboard().is_key_down(no::key::a) * 15.0f;
@@ -87,6 +90,8 @@ void game_state::update() {
 	} else {
 		controller.update();
 	}
+	world.update();
+	renderer.update();
 }
 
 void game_state::draw() {

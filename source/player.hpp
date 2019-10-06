@@ -1,12 +1,8 @@
 #pragma once
 
-#include "transform.hpp"
-#include "event.hpp"
+#include "object.hpp"
 
-class game_world;
-class game_world_room;
-
-class player_object {
+class player_object : public game_object {
 public:
 
 	struct collision {
@@ -14,14 +10,14 @@ public:
 		static constexpr no::vector2f size{ 11.0f, 13.0f };
 	};
 
-	no::transform2 transform;
-	bool facing_down{ false };
-	bool facing_right{ false };
-	bool is_moving{ false };
-	game_world* world{ nullptr };
-	game_world_room* room{ nullptr };
-
 	void update();
 	void move(bool left, bool right, bool up, bool down);
+	void attack();
+
+private:
+
+	void set_walk_animation();
+	void set_idle_animation();
+	void set_stab_animation();
 
 };
