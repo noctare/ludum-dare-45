@@ -212,7 +212,7 @@ object_stats get_stats(int type) {
 		break;
 	case staff_of_life:
 		stats.attack_speed = 10.0f;
-		stats.on_item_use.health = 30.0f;
+		stats.on_item_use.health = 50.0f;
 		stats.on_item_use.mana = -100.0f;
 		break;
 	case life_potion:

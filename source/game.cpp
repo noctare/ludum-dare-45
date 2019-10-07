@@ -8,19 +8,33 @@
 
 #define WITH_DEBUG_MENU 0
 
-game_state::game_state() : ui{ *this }, renderer { *this }, controller{ *this } {
+game_state::game_state() : ui{ *this }, renderer{ *this }, controller{ *this }, intro_text{ *this, renderer.camera } {
 #if WITH_DEBUG_MENU
 	no::imgui::create(window());
 #endif
 	set_synchronization(no::draw_synchronization::if_updated);
 	window().set_swap_interval(no::swap_interval::immediate);
-	set_background('f');
+	window().set_icon_from_resource(102);
+	cover_texture = no::require_texture("cover");
+	if (ui.font) {
+		intro_text.render(*ui.font, "Press any key to start playing!");
+		intro_text.transform.scale *= 2.0f;
+	}
+	intro_listen_key = keyboard().press.listen([this](no::key key) {
+		if (show_intro) {
+			start_playing();
+		}
+	});
+	random_intro_dist_timer.start();
+}
+
+void game_state::start_playing() {
+	show_intro = false;
+	set_background('l');
 	world.game = this;
 	controller.register_event_listeners();
 	enter_lobby();
 	bg_music = no::require_sound("bg");
-	magic_sound = no::require_sound("magic");
-	stab_sound = no::require_sound("stab");
 	play_sound(bg_music);
 	bg_loop.start();
 }
@@ -30,8 +44,7 @@ game_state::~game_state() {
 	no::imgui::destroy();
 #endif
 	no::release_sound("bg");
-	no::release_sound("magic");
-	no::release_sound("stab");
+	no::release_texture("cover");
 }
 
 void game_state::play_sound(no::audio_source* sound) {
@@ -71,6 +84,9 @@ void game_state::enter_dungeon(char type) {
 }
 
 void game_state::update() {
+	if (show_intro) {
+		return;
+	}
 	if (bg_loop.milliseconds() > 42000) {
 		play_sound(bg_music);
 		bg_loop.start();
@@ -178,6 +194,45 @@ void game_state::update() {
 }
 
 void game_state::draw() {
+	if (show_intro) {
+		renderer.camera.transform.scale = window().size().to<float>();
+		no::bind_shader(renderer.shader);
+		no::set_shader_view_projection(renderer.camera);
+		no::bind_texture(cover_texture);
+		no::transform2 transform;
+		transform.scale = no::texture_size(cover_texture).to<float>();
+		float aspect_ratio{ transform.scale.x / transform.scale.y };
+		transform.scale.y = renderer.camera.transform.scale.y;
+		transform.scale.x = transform.scale.x * aspect_ratio;
+		transform.position.x = renderer.camera.transform.scale.x / 2.0f - transform.scale.x / 2.0f;
+		no::get_shader_variable("color").set(no::vector4f{ 1.0f });
+		no::draw_shape(renderer.rectangle, transform);
+
+		if (random_intro_dist_timer.milliseconds() > 100) {
+			random_intro_dist_1 = world.random.next<float>(-4.0f, 4.0f);
+			random_intro_dist_2 = world.random.next<float>(-4.0f, 4.0f);
+			random_intro_dist_timer.start();
+		}
+
+		// shadow
+		no::get_shader_variable("color").set(no::vector4f{ 0.2f, 0.2f, 0.2f, 1.0f });
+		intro_text.transform.position = renderer.camera.transform.scale / 2.0f - intro_text.transform.scale / 2.0f;
+		intro_text.transform.position -= 4.0f + random_intro_dist_1;
+		intro_text.draw(renderer.rectangle);
+
+		// shadow
+		no::get_shader_variable("color").set(no::vector4f{ 0.2f, 0.2f, 0.2f, 1.0f });
+		intro_text.transform.position = renderer.camera.transform.scale / 2.0f - intro_text.transform.scale / 2.0f;
+		intro_text.transform.position += 4.0f + random_intro_dist_2;
+		intro_text.draw(renderer.rectangle);
+
+		// white
+		no::get_shader_variable("color").set(no::vector4f{ 1.0f });
+		intro_text.transform.position = renderer.camera.transform.scale / 2.0f - intro_text.transform.scale / 2.0f;
+		intro_text.transform.position += random_intro_dist_1 / 2.0f;
+		intro_text.draw(renderer.rectangle);
+		return;
+	}
 	renderer.draw();
 	ui.draw();
 #if WITH_DEBUG_MENU

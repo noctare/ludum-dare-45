@@ -41,7 +41,7 @@ object_stats get_stats(int type) {
 	case skeleton:
 		stats.max_health = 50.0f;
 		stats.defense = 5.0f;
-		stats.strength = 7.0f;
+		stats.strength = 17.0f;
 		stats.attack_speed = 8.0f;
 		stats.move_speed = 1.0f;
 		stats.bonus_strength = 0.0f;
@@ -51,70 +51,70 @@ object_stats get_stats(int type) {
 
 	case life_wizard:
 		stats.defense = 2.0f;
-		stats.strength = 4.0f;
+		stats.strength = 14.0f;
 		stats.max_health = 100.0f;
 		stats.attack_speed = 4.0f;
 		break;
 
 	case dark_wizard:
 		stats.defense = 10.0f;
-		stats.strength = 6.0f;
+		stats.strength = 16.0f;
 		stats.max_health = 80.0f;
 		stats.attack_speed = 6.0f;
 		break;
 
 	case toxic_wizard:
 		stats.defense = 7.0f;
-		stats.strength = 8.0f;
+		stats.strength = 18.0f;
 		stats.max_health = 60.0f;
 		stats.attack_speed = 10.0f;
 		break;
 
 	case big_fire_slime:
 		stats.defense = 5.0f;
-		stats.strength = 5.0f;
+		stats.strength = 15.0f;
 		stats.max_health = 20.0f;
 		stats.attack_speed = 8.0f;
 		break;
 
 	case small_fire_slime:
 		stats.defense = 2.0f;
-		stats.strength = 3.0f;
+		stats.strength = 13.0f;
 		stats.max_health = 10.0f;
 		stats.attack_speed = 10.0f;
 		break;
 
 	case big_water_slime:
 		stats.defense = 5.0f;
-		stats.strength = 5.0f;
+		stats.strength = 13.0f;
 		stats.max_health = 20.0f;
 		stats.attack_speed = 10.0f;
 		break;
 
 	case small_water_slime:
 		stats.defense = 2.0f;
-		stats.strength = 3.0f;
+		stats.strength = 11.0f;
 		stats.max_health = 10.0f;
 		stats.attack_speed = 12.0f;
 		break;
 
 	case knight:
 		stats.defense = 15.0f;
-		stats.strength = 10.0f;
+		stats.strength = 20.0f;
 		stats.max_health = 140.0f;
 		stats.attack_speed = 2.0f;
 		break;
 
 	case water_fish:
 		stats.defense = 12.0f;
-		stats.strength = 10.0f;
+		stats.strength = 20.0f;
 		stats.max_health = 90.0f;
 		stats.attack_speed = 4.0f;
 		break;
 
 	case fire_imp:
 		stats.defense = 11.0f;
-		stats.strength = 11.0f;
+		stats.strength = 21.0f;
 		stats.max_health = 110.0f;
 		stats.attack_speed = 6.0f;
 		break;
@@ -123,7 +123,7 @@ object_stats get_stats(int type) {
 	case water_boss:
 	case final_boss:
 		stats.defense = 20.0f;
-		stats.strength = 15.0f;
+		stats.strength = 25.0f;
 		stats.max_health = 300.0f;
 		stats.attack_speed = 9.0f;
 		stats.critical_strike_chance = 0.2;
@@ -224,7 +224,7 @@ int animation_frames(int type, int animation) {
 		case animation_type::walk: return 4;
 		case animation_type::idle: return 4;
 		case animation_type::stab: return 3;
-		case animation_type::cast: return 3;
+		case animation_type::cast: return 2;
 		case animation_type::hit: return 1;
 		case animation_type::die: return 3;
 		case animation_type::hit_flash: return 1;
@@ -234,7 +234,7 @@ int animation_frames(int type, int animation) {
 		switch (animation) {
 		case animation_type::walk: return 4;
 		case animation_type::idle: return 4;
-		case animation_type::stab: return 2;
+		case animation_type::stab: return 4;
 		case animation_type::cast: return 2;
 		case animation_type::hit: return 1;
 		case animation_type::die: return 5;
@@ -448,6 +448,9 @@ void monster_object::update() {
 		}
 		return;
 	}
+	if (type == monster_type::fire_boss || type == monster_type::water_boss || type == monster_type::final_boss) {
+		facing_down = true;
+	}
 	if (animation.is_done()) {
 		if (last_animation == animation_type::hit_flash) {
 			set_hit_animation();
@@ -484,7 +487,9 @@ void monster_object::update() {
 			}
 		}
 	}
-	if (distance_to_player < tile_size_f * 0.5f && become_angry_timer.seconds() > 2) {
+	if (monster_type::is_melee(type) && distance_to_player < tile_size_f * 0.5f && become_angry_timer.seconds() > 2) {
+		attack();
+	} else if (monster_type::is_magic(type) && distance_to_player < tile_size_f * 3.0f && become_angry_timer.seconds() > 2) {
 		attack();
 	} else if (animation.is_looping() && type != monster_type::fire_boss && type != monster_type::water_boss) {
 		move(input_left, input_right, input_up, input_down);
@@ -531,18 +536,37 @@ void monster_object::attack() {
 	default:
 		break;
 	}
+	no::vector2f to_player{ collision_transform().position + collision_transform().scale / 2.0f };
+	to_player -= world->player.collision_transform().position + world->player.collision_transform().scale / 2.0f;
 	last_attack.start();
 	no::vector2f attack_size{ 8.0f };
 	const auto collision{ collision_transform() };
 	no::vector2f attack_origin{ collision.position + collision.scale / 2.0f - attack_size / 2.0f };
 	no::vector2f attack_speed{ facing_right ? 3.0f : -3.0f, facing_down ? 3.0f : -3.0f };
 	if (monster_type::is_melee(type) && monster_type::is_magic(type)) {
-		if (world->random.chance(0.5f)) {
-			room->spawn_attack(false, type, 1, attack_origin, attack_size, attack_speed, 100);
-			set_stab_animation();
+		if (type == monster_type::fire_boss || type == monster_type::water_boss || type == monster_type::final_boss) {
+			if (world->random.chance(0.1f)) {
+				room->spawn_attack(false, type, 1, attack_origin, attack_size, attack_speed, 100);
+				set_stab_animation();
+			} else {
+				room->spawn_attack(false, type, 1, attack_origin, attack_size, attack_speed, 1500);
+				attack_speed.x = -attack_speed.x;
+				room->spawn_attack(false, type, 1, attack_origin, attack_size, attack_speed, 1500);
+				attack_speed.x = 0.0f;
+				room->spawn_attack(false, type, 1, attack_origin, attack_size, attack_speed, 1500);
+				attack_speed = { to_player.x > 1.0f ? -3.0f : 3.0f, to_player.y > 1.0f ? -3.0f : 3.0f };
+				room->spawn_attack(false, type, 1, attack_origin, attack_size, attack_speed, 1500);
+				set_cast_animation();
+			}
 		} else {
-			room->spawn_attack(false, type, 1, attack_origin, attack_size, attack_speed, 1000);
-			set_cast_animation();
+			if (world->random.chance(0.5f)) {
+				room->spawn_attack(false, type, 1, attack_origin, attack_size, attack_speed, 100);
+				set_stab_animation();
+			} else {
+				attack_speed = { to_player.x > 1.0f ? -3.0f : 3.0f, to_player.y > 1.0f ? -3.0f : 3.0f };
+				room->spawn_attack(false, type, 1, attack_origin, attack_size, attack_speed, 1000);
+				set_cast_animation();
+			}
 		}
 	} else {
 		if (monster_type::is_melee(type)) {
@@ -550,6 +574,7 @@ void monster_object::attack() {
 			set_stab_animation();
 		}
 		if (monster_type::is_magic(type)) {
+			attack_speed = { to_player.x > 1.0f ? -3.0f : 3.0f, to_player.y > 1.0f ? -3.0f : 3.0f };
 			room->spawn_attack(false, type, 1, attack_origin, attack_size, attack_speed, 1000);
 			set_cast_animation();
 		}

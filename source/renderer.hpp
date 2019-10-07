@@ -35,11 +35,12 @@ public:
 
 	void clear_rendered();
 
+	int shader{ -1 };
+	no::rectangle rectangle;
+
 private:
 
 	game_state& game;
-	int shader{ -1 };
-	no::rectangle rectangle;
 	int fire_tiles_texture{ -1 };
 	int water_tiles_texture{ -1 };
 	int light_tiles_texture{ -1 };
@@ -50,8 +51,8 @@ private:
 	int water_weapon_texture{ -1 };
 	int chest_texture{ -1 };
 	int magic_texture{ -1 };
-	int slash_texture{ -1 };
-	no::sprite_animation slash_animation;
+	//int slash_texture{ -1 };
+	//no::sprite_animation slash_animation;
 
 	no::transform2 room_transform;
 

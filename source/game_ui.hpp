@@ -4,6 +4,7 @@
 #include "camera.hpp"
 #include "font.hpp"
 #include "ui.hpp"
+#include "event.hpp"
 
 class game_state;
 
@@ -24,8 +25,10 @@ struct critical_hit_splat {
 
 class game_ui {
 public:
+	no::ortho_camera text_camera;
 
 	std::vector<critical_hit_splat> splats;
+	no::font* font;
 
 	game_ui(game_state& game);
 	~game_ui();
@@ -52,10 +55,8 @@ private:
 	game_state& game;
 
 	no::ortho_camera camera;
-	no::ortho_camera text_camera;
 	int ui_texture{ -1 };
 	no::rectangle rectangle;
-	no::font* font;
 	int critical_texture{ -1 };
 	
 	no::rectangle static_rectangle;

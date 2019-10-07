@@ -28,17 +28,17 @@ player_object::player_object() {
 		items[i] = -1;
 	}
 	stats.max_mana = 100.0f;
-	stats.max_health = 50.0f;
+	stats.max_health = 100.0f;
 	stats.defense = 3.0f;
 	stats.strength = 4.0f;
 	stats.attack_speed = 8.0f;
 	stats.move_speed = 1.0f;
 	stats.bonus_strength = 0.0f;
 	stats.critical_strike_chance = 0.1f;
-	stats.health_regeneration_rate = 0.001f;
+	stats.health_regeneration_rate = 0.0f;
 	stats.health = stats.max_health;
 	stats.mana = stats.max_mana;
-	stats.mana_regeneration_rate = 0.005f;
+	stats.mana_regeneration_rate = 0.002f;
 }
 
 void player_object::update() {
@@ -57,8 +57,8 @@ void player_object::update() {
 	animation.update(1.0f / 60.0f);
 	const auto combined_stats{ final_stats() };
 	stats.health += combined_stats.health_regeneration_rate;
-	stats.health = std::min(stats.health, combined_stats.max_health);
 	stats.mana += combined_stats.mana_regeneration_rate;
+	stats.health = std::min(stats.health, combined_stats.max_health);
 	stats.mana = std::min(stats.mana, combined_stats.max_mana);
 }
 
@@ -104,10 +104,16 @@ void player_object::attack() {
 		room->spawn_attack(true, equipped_weapon(), 1, attack_origin, attack_size, attack_speed, 100);
 		set_stab_animation();
 	} else if (item_type::is_staff(equipped_weapon())) {
-		room->spawn_attack(true, equipped_weapon(), 1, attack_origin, attack_size, attack_speed, 1000);
-		set_cast_animation();
-		stats.health += item_type::get_stats(equipped_weapon()).on_item_use.health;
-		stats.mana += item_type::get_stats(equipped_weapon()).on_item_use.mana;
+		if (equipped_weapon() == item_type::staff_of_life) {
+			set_cast_animation();
+			stats.health += item_type::get_stats(item_type::staff_of_life).on_item_use.health;
+			stats.mana += item_type::get_stats(item_type::staff_of_life).on_item_use.mana;
+		} else {
+			room->spawn_attack(true, equipped_weapon(), 1, attack_origin, attack_size, attack_speed, 1000);
+			set_cast_animation();
+			stats.health += item_type::get_stats(equipped_weapon()).on_item_use.health;
+			stats.mana += item_type::get_stats(equipped_weapon()).on_item_use.mana;
+		}
 	}
 }
 
@@ -249,7 +255,19 @@ void player_object::open_chest() {
 	for (auto& chest : room->chests) {
 		if (!chest.open && chest.collision_transform().distance_to(collision_transform()) < 20.0f) {
 			chest.open = true;
-			if (!chest.is_crate) {
+			if (chest.is_crate) {
+				if (world->random.chance(0.15f)) {
+					if (item_type::is_weapon(chest.item)) {
+						give_item(chest.item, 0);
+					} else {
+						for (int i{ 2 }; i < 8; i++) {
+							if (item_in_slot(i) < 0) {
+								give_item(chest.item, i);
+							}
+						}
+					}
+				}
+			} else {
 				world->game->ui.on_chest_open(chest.item);
 			}
 		}

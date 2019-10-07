@@ -13,6 +13,7 @@ public:
 	bool try_enter_door();
 	bool try_attack();
 	bool try_open_chest();
+	void try_consume(int slot);
 
 private:
 

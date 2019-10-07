@@ -1,8 +1,22 @@
 #include "player_controller.hpp"
 #include "game.hpp"
+#include "item.hpp"
 
 player_controller::player_controller(game_state& game) : game{ game } {
 
+}
+
+void player_controller::try_consume(int slot) {
+	auto& player{ game.world.player };
+	if (const int item{ player.item_in_slot(slot) }; item >= 0) {
+		if (item_type::is_consumable(item)) {
+			player.stats.health += item_type::get_stats(item).on_item_use.health;
+			player.stats.mana += item_type::get_stats(item).on_item_use.mana;
+			player.stats.health = std::min(player.stats.health, player.final_stats().max_health);
+			player.stats.mana = std::min(player.stats.mana, player.final_stats().max_mana);
+			player.give_item(-1, slot);
+		}
+	}
 }
 
 void player_controller::register_event_listeners() {
@@ -22,6 +36,18 @@ void player_controller::register_event_listeners() {
 
 		} else if (key == no::key::num_2) {
 
+		} else if (key == no::key::num_3) {
+			try_consume(2);
+		} else if (key == no::key::num_4) {
+			try_consume(3);
+		} else if (key == no::key::num_5) {
+			try_consume(4);
+		} else if (key == no::key::num_6) {
+			try_consume(5);
+		} else if (key == no::key::num_7) {
+			try_consume(6);
+		} else if (key == no::key::num_8) {
+			try_consume(7);
 		}
 	});
 }

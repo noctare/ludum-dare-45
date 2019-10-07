@@ -12,12 +12,23 @@ class game_state;
 class game_state : public no::program_state {
 public:
 
+
+	bool show_intro{ true };
+	int cover_texture{ -1 };
+
+	void start_playing();
+
 	float zoom{ 3.0f };
 	//float zoom{ 1.0f };
 	//float zoom{ 0.5f };
 	bool god_mode{ false };
 	bool show_all_rooms{ false };
 	bool show_collisions{ false };
+	no::text_view intro_text;
+	no::event_listener intro_listen_key;
+	float random_intro_dist_1{ 0.0f };
+	float random_intro_dist_2{ 0.0f };
+	no::timer random_intro_dist_timer;
 
 	game_world world;
 	game_ui ui;
@@ -37,8 +48,6 @@ public:
 	void play_sound(no::audio_source* sound);
 
 	no::audio_source* bg_music{ nullptr };
-	no::audio_source* magic_sound{ nullptr };
-	no::audio_source* stab_sound{ nullptr };
 	std::vector<no::audio_player*> audio_players;
 
 private:

@@ -274,6 +274,11 @@ void game_ui::draw() {
 
 void game_ui::on_chest_open(int item) {
 	game.world.player.locked_by_ui = true;
+	if (game.world.player.equipped_weapon() < 0) {
+		if (game.world.random.chance(0.5f)) {
+			item = game.world.random.next<int>(24, 34);
+		}
+	}
 	chest_ui.item = item;
 	chest_ui.open = true;
 

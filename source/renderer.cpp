@@ -39,11 +39,14 @@ game_renderer::game_renderer(game_state& game) : game{ game } {
 	monster_texture[monster_type::fire_boss] = no::require_texture("fire_boss");
 	monster_texture[monster_type::water_boss] = no::require_texture("water_boss");
 	monster_texture[monster_type::final_boss] = no::require_texture("final_boss");
-	slash_texture = no::require_texture("slash");
+	//slash_texture = no::require_texture("slash");
 	open_chest_rectangle.set_tex_coords(uv::chest_open.x, uv::chest_open.y, uv::chest_open.z, uv::chest_open.w);
 	closed_chest_rectangle.set_tex_coords(uv::chest_closed.x, uv::chest_closed.y, uv::chest_closed.z, uv::chest_closed.w);
 	crate_rectangle.set_tex_coords(uv::crate.x, uv::crate.y, uv::crate.z, uv::crate.w);
 	broken_crate_rectangle.set_tex_coords(uv::broken_crate.x, uv::broken_crate.y, uv::broken_crate.z, uv::broken_crate.w);
+	//slash_animation.frames = 6;
+	//slash_animation.stop_looping();
+
 }
 
 game_renderer::~game_renderer() {
@@ -72,7 +75,7 @@ game_renderer::~game_renderer() {
 	no::release_texture("fire_boss");
 	no::release_texture("water_boss");
 	no::release_texture("final_boss");
-	no::release_texture("slash");
+	//no::release_texture("slash");
 }
 
 void game_renderer::update() {
@@ -86,7 +89,7 @@ void game_renderer::update() {
 		camera.target_chase_aspect = { 2.0f, 2.0f };
 	}
 	camera.update();
-	slash_animation.update(1.0f / 60.0f);
+	//slash_animation.update(1.0f / 60.0f);
 }
 
 void game_renderer::draw() {
