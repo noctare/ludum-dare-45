@@ -2,8 +2,16 @@
 #include "assets.hpp"
 #include "surface.hpp"
 #include "game.hpp"
+#include "item.hpp"
 
 #include <filesystem>
+
+no::transform2 chest_object::collision_transform() const {
+	no::transform2 collision;
+	collision.position = transform.position + collision::offset;
+	collision.scale = collision::size;
+	return collision;
+}
 
 game_world_tile::game_world_tile(unsigned char type) {
 	corner[0] = type;
@@ -60,6 +68,10 @@ game_world_room::game_world_room(game_world_room&& that) noexcept : tiles{ std::
 	std::swap(doors, that.doors);
 	std::swap(monsters, that.monsters);
 	std::swap(initial_monsters_spawned, that.initial_monsters_spawned);
+	std::swap(attacks, that.attacks);
+	std::swap(type, that.type);
+	std::swap(chests, that.chests);
+	std::swap(is_boss_room, that.is_boss_room);
 }
 
 void game_world_room::resize(int width, int height) {
@@ -67,15 +79,102 @@ void game_world_room::resize(int width, int height) {
 	size = { width, height };
 }
 
+int game_world_room::next_monster_type() {
+	const int next_type{ world->random.next(0, monster_type::total_types - 1) };
+	if (type == 'f') {
+		if (is_boss_room && monsters.empty()) {
+			return monster_type::fire_boss;
+		}
+		const float success_rate[monster_type::total_types]{
+			0.9f, // skeleton
+			0.4f, // life wizard
+			0.9f, // dark wizard
+			0.8f, // toxic wizard
+			1.0f, // big fire slime
+			1.0f, // small fire slime
+			0.0f, // big water slime
+			0.0f, // small water slime
+			0.1f, // knight
+			0.0f, // water fish
+			1.0f, // fire imp
+			0.0f, // fire boss
+			0.0f, // water boss
+			0.0f, // final boss
+		};
+		return world->random.chance(success_rate[next_type]) ? next_type : monster_type::small_fire_slime;
+	} else if (type == 'w') {
+		if (is_boss_room && monsters.empty()) {
+			return monster_type::water_boss;
+		}
+		const float success_rate[monster_type::total_types]{
+			0.9f, // skeleton
+			0.8f, // life wizard
+			0.4f, // dark wizard
+			0.7f, // toxic wizard
+			0.0f, // big fire slime
+			0.0f, // small fire slime
+			1.0f, // big water slime
+			1.0f, // small water slime
+			0.1f, // knight
+			1.0f, // water fish
+			0.0f, // fire imp
+			0.0f, // fire boss
+			0.0f, // water boss
+			0.0f, // final boss
+		};
+		return world->random.chance(success_rate[next_type]) ? next_type : monster_type::small_water_slime;
+	} else if (type == 'l') {
+		if (is_boss_room && monsters.empty()) {
+			return monster_type::final_boss;
+		}
+		const float success_rate[monster_type::total_types]{
+			1.0f, // skeleton
+			1.0f, // life wizard
+			0.5f, // dark wizard
+			0.5f, // toxic wizard
+			0.2f, // big fire slime
+			0.2f, // small fire slime
+			0.2f, // big water slime
+			0.2f, // small water slime
+			1.0f, // knight
+			0.7f, // water fish
+			0.7f, // fire imp
+			0.0f, // fire boss
+			0.0f, // water boss
+			0.0f, // final boss
+		};
+		return world->random.chance(success_rate[next_type]) ? next_type : monster_type::knight;
+	}
+	return monster_type::skeleton;
+}
+
 void game_world_room::update() {
-	if (!initial_monsters_spawned) {
-		const int spawn_count{ world->random.next<int>(0, 5) };
+	if (!initial_monsters_spawned && !world->is_lobby) {
+		const int spawn_count{ world->random.next<int>(0, width() / 2) };
 		for (int i{ 0 }; i < spawn_count; i++) {
 			if (auto position{ find_empty_position() }) {
-				auto& monster{ monsters.emplace_back() };
+				auto& monster{ monsters.emplace_back(next_monster_type()) };
+				monster.id = world->next_object_id();
 				monster.world = world;
 				monster.room = this;
-				monster.transform.position = position.value();
+				if (monster.type == monster_type::fire_boss || monster.type == monster_type::water_boss || monster.type == monster_type::final_boss) {
+					monster.transform.position = index.to<float>() * tile_size_f;
+					monster.transform.position.x += static_cast<float>(width() * tile_size) / 2.0f - 48.0f;
+				} else {
+					monster.transform.position = position.value();
+				}
+			}
+		}
+		if (!is_boss_room && world->random.chance(0.75f)) {
+			const int chest_count{ world->random.next<int>(1, 5) };
+			for (int i{ 0 }; i < chest_count; i++) {
+				if (auto position{ find_empty_position() }) {
+					auto& chest{ chests.emplace_back() };
+					chest.transform.position = position.value();
+					chest.item = world->random.next<int>(0, 36);
+					chest.id = world->next_object_id();
+					chest.is_crate = world->random.chance(0.6f);
+				}
 			}
 		}
 		initial_monsters_spawned = true;
@@ -83,6 +182,9 @@ void game_world_room::update() {
 	for (auto& monster : monsters) {
 		monster.update();
 	}
+	std::sort(monsters.begin(), monsters.end(), [](const monster_object& a, const monster_object& b) {
+		return b.transform.position.y > a.transform.position.y;
+	});
 	process_attacks();
 }
 
@@ -137,14 +239,57 @@ void game_world_room::spawn_attack(bool by_player, int type, int attack_health, 
 	attack.by_player = by_player;
 	attack.health = attack_health;
 	attack.life_timer.start();
+	/*if (attack.by_player) {
+		if (item_type::is_staff(attack.type)) {
+			world->game->play_sound(world->game->magic_sound);
+		} else {
+			world->game->play_sound(world->game->stab_sound);
+		}
+	} else {
+		if (monster_type::is_magic(attack.type)) {
+			world->game->play_sound(world->game->magic_sound);
+		} else {
+			world->game->play_sound(world->game->stab_sound);
+		}
+	}*/
 }
 
 void game_world_room::process_attacks() {
+	auto& player{ world->player };
+	const auto player_stats{ player.final_stats() };
 	for (auto& attack : attacks) {
 		if (attack.by_player) {
 			for (auto& monster : monsters) {
-				if (world->player.collision_transform().collides_with(monster.collision_transform())) {
+				if (monster.dead) {
+					continue;
+				}
+				if (monster.collision_transform().collides_with(attack.position, attack.size)) {
 					monster.on_being_hit();
+					float damage{ 0.0f };
+					damage -= monster.stats.defense;
+					damage += player_stats.strength;
+					damage += player_stats.bonus_strength;
+					if (damage <= 0.0f) {
+						damage = player_stats.bonus_strength;
+					}
+					if (world->random.chance(player_stats.critical_strike_chance)) {
+						damage *= 2.0f;
+						world->game->ui.add_hit_splat(monster.id);
+					}
+					monster.stats.health -= damage;
+					if (monster.stats.health <= 0.0f) {
+						monster.dead = true;
+						monster.set_die_animation();
+						if (monster.type == monster_type::fire_boss) {
+							player.give_item(item_type::fire_head, 0);
+							world->game->enter_lobby();
+							return;
+						} else if (monster.type == monster_type::water_boss) {
+							player.give_item(item_type::water_head, 1);
+							world->game->enter_lobby();
+							return;
+						}
+					}
 					attack.health--;
 					if (attack.health <= 0) {
 						break;
@@ -152,7 +297,30 @@ void game_world_room::process_attacks() {
 				}
 			}
 		} else {
-
+			if (player.collision_transform().collides_with(attack.position, attack.size)) {
+				const auto monster_stats{ monster_type::get_stats(attack.type) };
+				player.on_being_hit();
+				float damage{ 0.0f };
+				damage -= player_stats.defense;
+				damage += monster_stats.strength;
+				damage += monster_stats.bonus_strength;
+				if (damage <= 0.0f) {
+					damage = monster_stats.bonus_strength;
+				}
+				if (world->random.chance(monster_stats.critical_strike_chance)) {
+					damage *= 2.0f;
+					world->game->ui.add_hit_splat(player.id);
+				}
+				player.stats.health -= damage;
+				if (player.stats.health <= 0.0f) {
+					world->game->enter_lobby();
+					return;
+				}
+				attack.health--;
+				if (attack.health <= 0) {
+					break;
+				}
+			}
 		}
 		attack.position += attack.speed;
 	}
@@ -196,8 +364,34 @@ bool game_world::is_x_empty(game_world_room* room, no::vector2f position, no::ve
 	if (test_tile_mask(*room, position)) {
 		return false;
 	}
+	for (auto& monster : room->monsters) {
+		if (!monster.dead && monster.collision_transform().collides_with(position)) {
+			return false;
+		}
+	}
+	for (auto& chest : room->chests) {
+		if (chest.collision_transform().collides_with(position)) {
+			return false;
+		}
+	}
+	if (player.collision_transform().collides_with(position)) {
+		return true;
+	}
 	position.y += size.y;
 	if (test_tile_mask(*room, position)) {
+		return false;
+	}
+	for (auto& monster : room->monsters) {
+		if (!monster.dead && monster.collision_transform().collides_with(position)) {
+			return false;
+		}
+	}
+	for (auto& chest : room->chests) {
+		if (chest.collision_transform().collides_with(position)) {
+			return false;
+		}
+	}
+	if (player.collision_transform().collides_with(position)) {
 		return false;
 	}
 	return true;
@@ -218,8 +412,34 @@ bool game_world::is_y_empty(game_world_room* room, no::vector2f position, no::ve
 	if (test_tile_mask(*room, position)) {
 		return false;
 	}
+	for (auto& monster : room->monsters) {
+		if (!monster.dead && monster.collision_transform().collides_with(position)) {
+			return false;
+		}
+	}
+	for (auto& chest : room->chests) {
+		if (chest.collision_transform().collides_with(position)) {
+			return false;
+		}
+	}
+	if (player.collision_transform().collides_with(position)) {
+		return false;
+	}
 	position.x += size.x;
 	if (test_tile_mask(*room, position)) {
+		return false;
+	}
+	for (auto& monster : room->monsters) {
+		if (!monster.dead && monster.collision_transform().collides_with(position)) {
+			return false;
+		}
+	}
+	for (auto& chest : room->chests) {
+		if (chest.collision_transform().collides_with(position)) {
+			return false;
+		}
+	}
+	if (player.collision_transform().collides_with(position)) {
 		return false;
 	}
 	return true;
@@ -432,12 +652,39 @@ std::optional<no::vector2f> game_world_room::find_empty_position() const {
 		} else if (!tile_at(x, y - 1).is_only(tile_type::floor)) {
 			continue;
 		}
-		return no::vector2f{
+		const no::vector2f position{
 			static_cast<float>(x * tile_size + index.x * tile_size),
 			static_cast<float>(y * tile_size + index.y * tile_size)
 		};
+		bool next{ false };
+		for (const auto& chest : chests) {
+			if (chest.transform.position.distance_to(position) < 8.0f) {
+				next = true;
+				break;
+			}
+		}
+		if (!next) {
+			return position;
+		}
 	}
 	return {};
+}
+
+game_object* game_world_room::object_with_id(int id) const {
+	if (world->player.id == id) {
+		return &world->player;
+	}
+	for (auto& monster : monsters) {
+		if (monster.id == id) {
+			return (game_object*)&monster;
+		}
+	}
+	for (auto& chest : chests) {
+		if (chest.id == id) {
+			return (game_object*)&chest;
+		}
+	}
+	return nullptr;
 }
 
 game_world::game_world() {
@@ -450,6 +697,7 @@ game_world::game_world() {
 		}
 	}
 	player.world = this;
+	player.id = next_object_id();
 }
 
 void game_world::update() {
@@ -461,4 +709,8 @@ void game_world::update() {
 	} else if (player.room) {
 		player.room->update();
 	}
+}
+
+int game_world::next_object_id() {
+	return object_id_counter++;
 }

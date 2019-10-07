@@ -42,6 +42,28 @@ public:
 
 };
 
+class chest_object : public game_object {
+public:
+
+	struct collision {
+		static constexpr no::vector2f offset{ 4.0f, 12.0f };
+		static constexpr no::vector2f size{ 26.0f, 20.0f };
+	};
+
+	int item{ -1 };
+	bool open{ false };
+
+	// This is how you know it's final day on ludum dare:
+	bool is_crate{ false };
+
+	no::transform2 collision_transform() const override;
+
+	int class_type() const override {
+		return 3;
+	}
+
+};
+
 class game_world_room {
 public:
 
@@ -49,6 +71,7 @@ public:
 		no::vector2i from_tile;
 		game_world_room* to_room{ nullptr };
 		no::vector2i to_tile;
+		int flag{ 0 };
 	};
 
 	struct active_attack {
@@ -68,7 +91,10 @@ public:
 	std::vector<door_connection> doors;
 	std::vector<monster_object> monsters;
 	std::vector<active_attack> attacks;
+	std::vector<chest_object> chests;
 	bool initial_monsters_spawned{ false };
+	char type{ 'f' }; // f = fire, w = water, l = light
+	bool is_boss_room{ false };
 
 	void add_door(no::vector2i from, game_world_room* room, no::vector2i to) {
 		auto& door{ doors.emplace_back() };
@@ -85,6 +111,8 @@ public:
 	game_world_room& operator=(game_world_room&&) = delete;
 
 	void resize(int width, int height);
+
+	int next_monster_type();
 
 	void update();
 	void set_tile(int x, int y, game_world_tile tile);
@@ -110,6 +138,8 @@ public:
 	door_connection* find_colliding_door(no::vector2f position, no::vector2f size);
 
 	std::optional<no::vector2f> find_empty_position() const;
+
+	game_object* object_with_id(int id) const;
 
 private:
 
@@ -144,6 +174,7 @@ public:
 	std::vector<game_world_room> rooms;
 	game_state* game{ nullptr };
 	no::random_number_generator random;
+	bool is_lobby{ false };
 
 	game_world();
 
@@ -162,8 +193,11 @@ public:
 	game_world_room* find_top_neighbour_room(game_world_room& room, const std::function<bool(game_world_room&)>& allow);
 	game_world_room* find_bottom_neighbour_room(game_world_room& room, const std::function<bool(game_world_room&)>& allow);
 
+	int next_object_id();
+
 private:
 	
 	tileset_collision_mask collision;
+	int object_id_counter{ 0 };
 
 };

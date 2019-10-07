@@ -11,6 +11,9 @@ void configure() {
 	no::register_font("leo", 32);
 	no::register_font("leo", 16);
 	no::register_shader("sprite");
+	no::register_sound("bg");
+	no::register_sound("magic");
+	no::register_sound("stab");
 }
 
 void start() {

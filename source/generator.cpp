@@ -1,23 +1,55 @@
 #include "generator.hpp"
 #include "noise.hpp"
 
-game_world_generator::game_world_generator(unsigned long long seed) : random{ seed } {
-	no::set_noise_seed(seed);
+game_world_generator::game_world_generator() {
+	no::set_noise_seed(random.seed());
 }
 
-void game_world_generator::generate(game_world& world) {
-	for (int i{ 0 }; i < 50; i++) {
-		make_room(world);
+void game_world_generator::generate_dungeon(game_world& world, char type) {
+	world.is_lobby = false;
+	generating_lobby = false;
+	for (int i{ 0 }; i < 5; i++) {
+		make_room(world, type);
 	}
+	generating_boss_room = true;
+	make_room(world, type);
+	generating_boss_room = false;
 	place_doors(world);
 	for (auto& room : world.rooms) {
+		if (room.is_boss_room && room.doors.size() > 0) {
+			continue;
+		}
+		int attempts{ 0 };
 		while (room.doors.size() < 2) {
 			place_doors(world);
+			attempts++;
+			if (attempts > 1000) {
+				break;
+			}
 		}
 	}
+	auto& boss_room{ world.rooms.back() };
+	boss_room.is_boss_room = true;
+}
+
+void game_world_generator::generate_lobby(game_world& world) {
+	world.is_lobby = true;
+	generating_lobby = true;
+	make_room(world, 'l');
+	auto& room{ world.rooms.front() };
+	room.add_door({ room.width() / 2 - 2, 1 }, nullptr, {});
+	room.add_door({ room.width() / 2, 1 }, nullptr, {});
+	room.add_door({ room.width() / 2 + 2, 1}, nullptr, {});
+	room.doors[0].flag = 1;
+	room.doors[1].flag = 2;
+	room.doors[2].flag = 3;
 }
 
 void game_world_generator::make_tile(game_world_room& room, game_world_tile& tile, int x, int y) {
+	if (generating_lobby || generating_boss_room) {
+		tile = tile_type::floor;
+		return;
+	}
 	no::vector2i index{ room.left() + x, room.top() + y };
 	const float noise{ no::octave_noise(3.0f, 0.01f, 0.1f, index.to<float>().x, index.to<float>().y) };
 	if (noise > 0.5f) {
@@ -27,10 +59,11 @@ void game_world_generator::make_tile(game_world_room& room, game_world_tile& til
 	}
 }
 
-void game_world_generator::make_room(game_world& world) {
+void game_world_generator::make_room(game_world& world, char room_type) {
 	int direction{ next_room_direction() };
 	auto& room{ world.rooms.emplace_back() };
 	room.world = &world;
+	room.type = room_type;
 	if (direction > 0 && horizontal_since_vertical_change > 0) {
 		place_room_top(world, room);
 		horizontal_since_vertical_change = 0;
@@ -103,8 +136,8 @@ void game_world_generator::make_border(game_world_room& room, game_world_tile ti
 }
 
 void game_world_generator::place_room_right(game_world& world, game_world_room& room) {
-	const int width{ random.next<int>(10, 20) };
-	const int height{ random.next<int>(10, 20) };
+	const int width{ next_room_width() };
+	const int height{ next_room_height() };
 	int left{ world_size.x };
 	const int top{ world_size.y - last_world_size_delta.y / 2 - height / 2 };
 	while (will_room_collide(world, left, top, width, height)) {
@@ -115,8 +148,8 @@ void game_world_generator::place_room_right(game_world& world, game_world_room& 
 }
 
 void game_world_generator::place_room_bottom(game_world& world, game_world_room& room) {
-	const int width{ random.next<int>(10, 20) };
-	const int height{ random.next<int>(10, 20) };
+	const int width{ next_room_width() };
+	const int height{ next_room_height() };
 	const int left{ world_size.x - last_world_size_delta.x };
 	int top{ world_size.y };
 	while (will_room_collide(world, left, top, width, height)) {
@@ -127,8 +160,8 @@ void game_world_generator::place_room_bottom(game_world& world, game_world_room&
 }
 
 void game_world_generator::place_room_top(game_world& world, game_world_room& room) {
-	const int width{ random.next<int>(10, 20) };
-	const int height{ random.next<int>(10, 20) };
+	const int width{ next_room_width() };
+	const int height{ next_room_height() };
 	const int mid_height{ std::max(0, world_size.y / 2 - height / 2) };
 	const int left{ world_size.x - last_world_size_delta.x };
 	int top{ world_size.y - last_world_size_delta.y - height };
@@ -265,4 +298,12 @@ bool game_world_generator::will_room_collide(game_world& world, int left, int to
 		}
 	}
 	return false;
+}
+
+int game_world_generator::next_room_width() {
+	return generating_lobby ? 9 : (generating_boss_room ? 15 : random.next<int>(10, 20));
+}
+
+int game_world_generator::next_room_height() {
+	return generating_lobby ? 12 : (generating_boss_room ? 15 : random.next<int>(10, 20));
 }

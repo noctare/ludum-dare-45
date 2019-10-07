@@ -12,6 +12,7 @@ public:
 	void update();
 	bool try_enter_door();
 	bool try_attack();
+	bool try_open_chest();
 
 private:
 

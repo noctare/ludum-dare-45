@@ -7,14 +7,15 @@
 class game_world_generator {
 public:
 
-	game_world_generator(unsigned long long seed);
+	game_world_generator();
 
-	void generate(game_world& world);
+	void generate_dungeon(game_world& world, char type);
+	void generate_lobby(game_world& world);
 
 private:
 
 	void make_tile(game_world_room& room, game_world_tile& tile, int x, int y);
-	void make_room(game_world& world);
+	void make_room(game_world& world, char room_type);
 	void make_border(game_world_room& room, game_world_tile tile) const;
 	void place_room_right(game_world& world, game_world_room& room);
 	void place_room_bottom(game_world& world, game_world_room& room);
@@ -38,5 +39,10 @@ private:
 
 	std::vector<char> last_room_door_directions;
 
+	int next_room_width();
+	int next_room_height();
+
+	bool generating_lobby{ false };
+	bool generating_boss_room{ false };
 
 };
