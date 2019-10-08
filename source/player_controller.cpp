@@ -112,7 +112,9 @@ bool player_controller::try_attack() {
 	player.attack();
 	for (auto& monster : player.room->monsters) {
 		if (monster.collision_transform().distance_to(player.collision_transform()) < 32.0f) {
-			return true;
+			if (!monster.dead) { // POST-BUGFIX: Only "succeed" with alive monsters.
+				return true;
+			}
 		}
 	}
 	return false;

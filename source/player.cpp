@@ -38,7 +38,7 @@ player_object::player_object() {
 	stats.health_regeneration_rate = 0.0f;
 	stats.health = stats.max_health;
 	stats.mana = stats.max_mana;
-	stats.mana_regeneration_rate = 0.002f;
+	stats.mana_regeneration_rate = 0.04f; // POST-TWEAK: 0.002 -> 0.04
 }
 
 void player_object::update() {

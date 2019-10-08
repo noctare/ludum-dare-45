@@ -200,6 +200,7 @@ void game_state::update() {
 			world.player.give_item(item_type::sword, 0);
 			world.player.give_item(item_type::scimitar, 0);
 			world.player.give_item(item_type::fire_staff, 0);
+			world.player.give_item(item_type::water_staff, 0);
 		}
 		if (ImGui::MenuItem("Give boss stuff")) {
 			world.player.give_item(item_type::water_head, 0);

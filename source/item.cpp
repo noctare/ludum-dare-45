@@ -119,7 +119,7 @@ object_stats get_stats(int type) {
 		break;
 	case band_of_patience:
 		stats.health_regeneration_rate = 2.0f / 60.0f; // POST-TWEAK: 3 -> 2, was a bit too fast
-		stats.mana_regeneration_rate = 6.0f / 60.0f; // POST-TWEAK: 10 -> 6
+		stats.mana_regeneration_rate = 4.0f / 60.0f; // POST-TWEAK: 10 -> 4
 		break;
 	case warriors_gloves:
 		stats.strength = 5.0f;
@@ -148,7 +148,7 @@ object_stats get_stats(int type) {
 		stats.attack_speed = 0.5f;
 		break;
 	case moon_tiara:
-		stats.mana_regeneration_rate = 20.0f / 60.0f;
+		stats.mana_regeneration_rate = 10.0f / 60.0f; // POST-TWEAK: 20 -> 10
 		break;
 	case armor_of_neglect:
 		stats.defense = 15.0f;
@@ -170,50 +170,56 @@ object_stats get_stats(int type) {
 		break;
 	case sword:
 		stats.strength = 10.0f;
-		stats.attack_speed = 1.0f;
+		stats.attack_speed = 6.0f; // POST-TWEAK: 1 -> 6
 		break;
 	case battle_axe:
 		stats.strength = 15.0f;
-		stats.attack_speed = 1.5f;
+		stats.bonus_strength = 5.0f; // POST-TWEAK: Added
+		stats.attack_speed = 5.0f; // POST-TWEAK: 1.5 -> 5
 		break;
 	case katana:
 		stats.strength = 12.0f;
-		stats.attack_speed = 1.0f;
+		stats.attack_speed = 13.0f; // POST-TWEAK: 1 -> 13
 		break;
 	case khopesh:
 		stats.strength = 8.0f;
-		stats.attack_speed = 1.2f;
+		stats.attack_speed = 10.0f; // POST-TWEAK: 1.2 -> 10
 		break;
 	case scimitar:
-		stats.strength = 18.0f;
-		stats.attack_speed = 2.0f;
+		stats.strength = 11.0f; // POST-TWEAK: 18 -> 12
+		stats.critical_strike_chance = 0.4f; // POST-TWEAK: Added
+		stats.bonus_strength = 2.0f; // POST-TWEAK: Added
+		stats.attack_speed = 15.0f; // POST-TWEAK: 2 -> 15
 		break;
 	case halberd:
 		stats.strength = 25.0f;
-		stats.attack_speed = 2.5f;
+		stats.attack_speed = 2.0f; // POST-TWEAK: 2.5 -> 2
 		break;
 	case axe:
 		stats.strength = 12.0f;
-		stats.attack_speed = 1.9f;
+		stats.bonus_strength = 3.0f; // POST-TWEAK: Added
+		stats.attack_speed = 8.0f; // POST-TWEAK: 1.9 -> 8
 		break;
 	case spear:
-		stats.strength = 14.0f;
-		stats.attack_speed = 1.2f;
+		stats.strength = 20.0f;
+		stats.attack_speed = 3.0f; // POST-TWEAK: 1.2 -> 3
 		break;
 	case fire_staff:
-		stats.strength = 50.0f;
-		stats.attack_speed = 2.0f;
-		stats.on_item_use.mana = -10.0f;
+		stats.strength = 25.0f; // POST-TWEAK: 50 -> 25
+		stats.critical_strike_chance = 0.5f; // POST-TWEAK: Added
+		stats.bonus_strength = 10.0f; // POST-TWEAK: Added
+		stats.attack_speed = 4.0f; // POST-TWEAK: 2 -> 4
+		stats.on_item_use.mana = -50.0f; // POST-TWEAK: -10 -> -50
 		break;
 	case water_staff:
-		stats.strength = 10.0f;
-		stats.attack_speed = 0.5f;
-		stats.on_item_use.mana = -10.0f;
+		stats.strength = 50.0f; // POST-TWEAK: 10 -> 50
+		stats.attack_speed = 5.0f; // POST-TWEAK: 0.5 -> 5
+		stats.on_item_use.mana = -40.0f; // POST-TWEAK: -10 -> -40
 		break;
 	case staff_of_life:
 		stats.attack_speed = 10.0f;
-		stats.on_item_use.health = 50.0f;
-		stats.on_item_use.mana = -100.0f;
+		stats.on_item_use.health = 100.0f; // POST-TWEAK: 50 -> 100
+		stats.on_item_use.mana = -80.0f; // POST-TWEAK: 100 -> 80
 		break;
 	case life_potion:
 		stats.on_item_use.health = 100.0f; // POST-TWEAK: 20 -> 100

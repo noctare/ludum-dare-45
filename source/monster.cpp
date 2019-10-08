@@ -79,7 +79,7 @@ object_stats get_stats(int type) {
 	case big_fire_slime:
 		stats.defense = 5.0f;
 		stats.strength = 15.0f;
-		stats.max_health = 20.0f;
+		stats.max_health = 35.0f; // POST-TWEAK: 20 -> 35
 		stats.attack_speed = 8.0f;
 		stats.bonus_strength = 7.0f; // POST-TWEAK: Added
 		break;
@@ -95,7 +95,7 @@ object_stats get_stats(int type) {
 	case big_water_slime:
 		stats.defense = 5.0f;
 		stats.strength = 15.0f; // POST-TWEAK: 13 -> 15
-		stats.max_health = 20.0f;
+		stats.max_health = 35.0f; // POST-TWEAK: 20 -> 35
 		stats.attack_speed = 10.0f;
 		stats.bonus_strength = 7.0f; // POST-TWEAK: Added
 		break;
