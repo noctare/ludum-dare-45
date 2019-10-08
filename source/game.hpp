@@ -9,9 +9,28 @@
 
 class game_state;
 
+#define POST_LD_FEATURE_KILL_COUNT 1
+
 class game_state : public no::program_state {
 public:
 
+#if POST_LD_FEATURE_KILL_COUNT
+	// POST-FEATURE: Kill count. On the edge of being too much of a post-submission edit.
+	// However, it doesn't affect gameplay itself, and makes it  more enjoyable to play.
+	int kill_count{ 0 };
+	int monster_count{ 0 };
+	no::text_view kill_count_text;
+	bool in_lobby{ false };
+	//
+#endif
+
+	// POST-TWEAK: Show instructions!
+	no::text_view instructions;
+	//
+
+	// POST-TWEAK: Let players toggle audio, instead of having to delete file.
+	bool play_audio{ true };
+	//
 
 	bool show_intro{ true };
 	int cover_texture{ -1 };

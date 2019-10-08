@@ -107,8 +107,8 @@ object_stats get_stats(int type) {
 		stats.defense = 10.0f;
 		break;
 	case necklace_of_stability:
-		stats.max_health = 30.0f;
-		stats.max_mana = 20.0f;
+		stats.max_health = 50.0f; // POST-TWEAK: 30 -> 50
+		stats.max_mana = 50.0f; // POST-TWEAK: 20 -> 50
 		break;
 	case shoes_of_sneaking:
 		stats.move_speed = 0.5f;
@@ -118,8 +118,8 @@ object_stats get_stats(int type) {
 		stats.defense = 4.0f;
 		break;
 	case band_of_patience:
-		stats.health_regeneration_rate = 3.0f / 60.0f;
-		stats.mana_regeneration_rate = 10.0f / 60.0f;
+		stats.health_regeneration_rate = 2.0f / 60.0f; // POST-TWEAK: 3 -> 2, was a bit too fast
+		stats.mana_regeneration_rate = 6.0f / 60.0f; // POST-TWEAK: 10 -> 6
 		break;
 	case warriors_gloves:
 		stats.strength = 5.0f;
@@ -216,7 +216,7 @@ object_stats get_stats(int type) {
 		stats.on_item_use.mana = -100.0f;
 		break;
 	case life_potion:
-		stats.on_item_use.health = 20.0f;
+		stats.on_item_use.health = 100.0f; // POST-TWEAK: 20 -> 100
 		break;
 	case mana_potion:
 		stats.on_item_use.mana = 100.0f;

@@ -25,6 +25,7 @@ struct critical_hit_splat {
 
 class game_ui {
 public:
+	no::ortho_camera camera;
 	no::ortho_camera text_camera;
 
 	std::vector<critical_hit_splat> splats;
@@ -36,8 +37,10 @@ public:
 	void update();
 	void draw();
 
-	void on_chest_open(int item);
+	void on_chest_open(int item, bool force = false);
 	void add_hit_splat(int target_id);
+
+	void register_event_listeners();
 
 private:
 	
@@ -54,7 +57,6 @@ private:
 
 	game_state& game;
 
-	no::ortho_camera camera;
 	int ui_texture{ -1 };
 	no::rectangle rectangle;
 	int critical_texture{ -1 };

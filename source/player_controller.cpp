@@ -24,10 +24,18 @@ void player_controller::register_event_listeners() {
 		if (game.world.player.locked_by_ui) {
 			return;
 		}
+		if (!game.world.player.room) {
+			return;
+		}
 		if (key == no::key::space) {
-			try_open_chest();
-			try_attack();
-			try_enter_door();
+			// POST-TWEAK: Made only 1 action succeed.
+			if (!try_open_chest()) {
+				if (!try_attack()) {
+					try_enter_door();
+				}
+			}
+		} else if (key == no::key::enter || key == no::key::left_shift) {
+			try_enter_door(); // POST-TWEAK: If you want to enter door instead of attacking.
 		} else if (key == no::key::q) {
 			game.world.player.change_weapon(-1);
 		} else if (key == no::key::e) {
@@ -102,11 +110,16 @@ bool player_controller::try_enter_door() {
 bool player_controller::try_attack() {
 	auto& player{ game.world.player };
 	player.attack();
-	return true;
+	for (auto& monster : player.room->monsters) {
+		if (monster.collision_transform().distance_to(player.collision_transform()) < 32.0f) {
+			return true;
+		}
+	}
+	return false;
 }
 
 bool player_controller::try_open_chest() {
 	auto& player{ game.world.player };
 	player.open_chest();
-	return true;
+	return player.locked_by_ui;
 }

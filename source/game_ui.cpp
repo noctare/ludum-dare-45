@@ -49,10 +49,24 @@ game_ui::game_ui(game_state& game) : game{ game },
 	ui_texture = no::require_texture("ui");
 	font = no::require_font("leo", 16);
 	critical_texture = no::create_texture(font->render("!", 0x000000FF));
+}
+
+void game_ui::register_event_listeners() {
 	key_press = game.keyboard().press.listen([&](no::key key) {
 		if (!chest_ui.open) {
 			return;
 		}
+		// POST-TWEAK
+		if (game.world.is_boss_dead) {
+			if (key == no::key::enter || key == no::key::escape) {
+				game.world.player.give_item(chest_ui.item, 0);
+				chest_ui.open = false;
+				game.world.player.locked_by_ui = false;
+				game.enter_lobby();
+			}
+			return;
+		}
+		//
 		if (key == no::key::escape) {
 			chest_ui.open = false;
 			game.world.player.locked_by_ui = false;
@@ -101,13 +115,18 @@ game_ui::game_ui(game_state& game) : game{ game },
 
 game_ui::~game_ui() {
 	no::delete_texture(critical_texture);
-	splats.clear();
 	no::release_texture("ui");
 	no::release_font("leo", 16);
 }
 
 void game_ui::update() {
-	camera.zoom = game.zoom;
+	// POST-BUGFIX: UI was partially hidden when window width was under 1600
+	if (camera.transform.scale.x > 1600.0f) {
+		camera.zoom = game.zoom;
+	} else {
+		camera.zoom = 2.0f;
+	}
+	//
 	camera.transform.scale = game.window().size().to<float>();
 	text_camera.transform.scale = game.window().size().to<float>();
 	uint32_t color{ 0x00000000 };
@@ -124,10 +143,27 @@ void game_ui::update() {
 	update_hit_splats();
 	if (chest_ui.open) {
 		chest_item_name.render(*font, item_type::get_name(chest_ui.item));
-		if (game.world.player.has_empty_slot() || item_type::is_weapon(chest_ui.item)) {
+		if (!game.world.is_boss_dead && (game.world.player.has_empty_slot() || item_type::is_weapon(chest_ui.item))) {
 			chest_message.render(*font, "Press 'Space' to take this item.\n\nAlternatively, press 'Escape' to close.");
-		} else {
+		} else if (!game.world.is_boss_dead) {
 			chest_message.render(*font, "Please press the digit of the slot to assign this item to.\nThe other item will be lost.\n\nAlternatively, press 'Escape' to close.");
+		} else {
+			// POST-TWEAK/FEATURE: Probably on the edge of being considered a "feature", but o'well.
+			if (chest_ui.item == item_type::fire_head || chest_ui.item == item_type::water_head) {
+				chest_message.render(*font, 
+					"You sure did him in, mate!\n"
+					"Here, take his head as a trophy.\n\n"
+					"Press 'Enter' or 'Escape' to go back to the lobby."
+				);
+			} else {
+				chest_message.render(*font, 
+					"Wow! The final boss, defeated?!\n"
+					"I never expected anyone to accomplish such a thing.\n"
+					"Here, just take this dum- I mean, amazing \"Staff of Life\"!\n\n"
+					"Press 'Enter' or 'Escape' to go back to the lobby."
+				);
+			}
+			//
 		}
 	}
 }
@@ -244,6 +280,15 @@ void game_ui::draw() {
 		chest_message.draw(static_rectangle);
 	}
 
+#if POST_LD_FEATURE_KILL_COUNT
+	if (!game.in_lobby) {
+		no::set_shader_view_projection(text_camera);
+		game.kill_count_text.render(*font, STRING("You've killed " << game.kill_count << "/" << game.monster_count << " monsters in this dungeon"));
+		game.kill_count_text.transform.position = { 32.0f, camera.transform.scale.y - 96.0f };
+		game.kill_count_text.draw(static_rectangle);
+	}
+#endif
+
 	// draw stat numbers
 	no::set_shader_view_projection(text_camera);
 	no::vector2f stat;
@@ -272,16 +317,19 @@ void game_ui::draw() {
 	draw_hit_splats();
 }
 
-void game_ui::on_chest_open(int item) {
+void game_ui::on_chest_open(int item, bool force) {
 	game.world.player.locked_by_ui = true;
-	if (game.world.player.equipped_weapon() < 0) {
-		if (game.world.random.chance(0.5f)) {
-			item = game.world.random.next<int>(24, 34);
+	if (!force) {
+		if (game.world.player.equipped_weapon() < 0) {
+			if (game.world.random.chance(0.5f)) {
+				item = game.world.random.next<int>(24, 33); // POST-TWEAK: Don't select staff of life here.
+			} else if (item == item_type::staff_of_life) {
+				item = item_type::axe; // POST-TWEAK: Staff of life is not really a first "weapon".
+			}
 		}
 	}
 	chest_ui.item = item;
 	chest_ui.open = true;
-
 }
 
 no::transform2 game_ui::overlay_transform() const {
@@ -296,6 +344,11 @@ void game_ui::add_hit_splat(int target_id) {
 }
 
 void game_ui::update_hit_splats() {
+	// POST-BUGFIX: Can't update if no room yet.
+	if (!game.world.player.room) {
+		return;
+	}
+	//
 	for (int i{ 0 }; i < static_cast<int>(splats.size()); i++) {
 		auto& splat{ splats[i] };
 		if (splat.fade_in < 1.0f) {

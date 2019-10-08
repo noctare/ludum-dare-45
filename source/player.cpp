@@ -101,15 +101,21 @@ void player_object::attack() {
 	no::vector2f attack_origin{ transform.position + collision::offset + collision::size / 2.0f - attack_size / 2.0f };
 	no::vector2f attack_speed{ facing_right ? 3.0f : -3.0f, facing_down ? 3.0f : -3.0f };
 	if (item_type::is_sword(equipped_weapon())) {
-		room->spawn_attack(true, equipped_weapon(), 1, attack_origin, attack_size, attack_speed, 100);
+		room->spawn_attack(true, equipped_weapon(), 2, attack_origin, attack_size, attack_speed, 100);
 		set_stab_animation();
 	} else if (item_type::is_staff(equipped_weapon())) {
+		// POST-BUGFIX: Don't use more mana than you have.
+		const float on_use_mana{ item_type::get_stats(equipped_weapon()).on_item_use.mana };
+		if (on_use_mana < 0.0f && stats.mana < std::abs(on_use_mana)) {
+			return;
+		}
+		//
 		if (equipped_weapon() == item_type::staff_of_life) {
 			set_cast_animation();
 			stats.health += item_type::get_stats(item_type::staff_of_life).on_item_use.health;
 			stats.mana += item_type::get_stats(item_type::staff_of_life).on_item_use.mana;
 		} else {
-			room->spawn_attack(true, equipped_weapon(), 1, attack_origin, attack_size, attack_speed, 1000);
+			room->spawn_attack(true, equipped_weapon(), 3, attack_origin, attack_size, attack_speed, 1000);
 			set_cast_animation();
 			stats.health += item_type::get_stats(equipped_weapon()).on_item_use.health;
 			stats.mana += item_type::get_stats(equipped_weapon()).on_item_use.mana;
@@ -195,6 +201,13 @@ void player_object::change_weapon(int scroll) {
 }
 
 void player_object::give_item(int type, int slot) {
+	if (type == item_type::fire_head) {
+		items[0] = type;
+		return;
+	} else if (type == item_type::water_head) {
+		items[1] = type;
+		return;
+	}
 	if (item_type::is_weapon(type)) {
 		for (const int weapon : weapons) {
 			if (weapon == type) {
@@ -252,6 +265,9 @@ object_stats player_object::final_stats() const {
 }
 
 void player_object::open_chest() {
+	if (!room) {
+		return; // POST-BUGFIX: Nullpointer check. Happens if you press space really fast when launching game.
+	}
 	for (auto& chest : room->chests) {
 		if (!chest.open && chest.collision_transform().distance_to(collision_transform()) < 20.0f) {
 			chest.open = true;

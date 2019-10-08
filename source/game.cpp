@@ -8,35 +8,69 @@
 
 #define WITH_DEBUG_MENU 0
 
-game_state::game_state() : ui{ *this }, renderer{ *this }, controller{ *this }, intro_text{ *this, renderer.camera } {
+game_state::game_state() : ui{ *this }, renderer{ *this }, controller{ *this }, intro_text{ *this, ui.camera }
+#if POST_LD_FEATURE_KILL_COUNT
+,kill_count_text{ *this, ui.camera }
+#endif
+, instructions{ *this, ui.camera }
+{
 #if WITH_DEBUG_MENU
 	no::imgui::create(window());
 #endif
 	set_synchronization(no::draw_synchronization::if_updated);
 	window().set_swap_interval(no::swap_interval::immediate);
 	window().set_icon_from_resource(102);
+	bg_music = no::require_sound("bg");
 	cover_texture = no::require_texture("cover");
 	if (ui.font) {
 		intro_text.render(*ui.font, "Press any key to start playing!");
 		intro_text.transform.scale *= 2.0f;
+		// POST-TWEAK: Show instructions!
+		instructions.render(*ui.font,
+			"Movement: WASD\n\n"
+			"Open chests: Space\n\n"
+			"Attack: Space (Must have weapon equipped)\n\n"
+			"Change weapon: Q and E\n\n"
+			"Open door: Space / Enter / Left shift\n\n"
+			"Use item: 3, 4, 5, 6, 7, and 8\n(must be consumable item, such as potion)"
+		);
+		instructions.transform.scale *= 2.0f;
+		//
 	}
 	intro_listen_key = keyboard().press.listen([this](no::key key) {
 		if (show_intro) {
 			start_playing();
+		} else if (key == no::key::m) {
+			// POST-TWEAK: Let players toggle audio, instead of having to delete files.
+			play_audio = !play_audio;
+			if (play_audio) {
+				play_sound(bg_music);
+				bg_loop.start();
+			} else {
+				for (auto& audio_player : audio_players) {
+					audio_player->stop();
+				}
+			}
+			//
+		} else if (key == no::key::l) {
+			// POST-TWEAK: Let players toggle synchronization
+			limit_fps = !limit_fps;
+			set_synchronization(limit_fps ? no::draw_synchronization::if_updated : no::draw_synchronization::always);
+			//
 		}
 	});
 	random_intro_dist_timer.start();
+	play_sound(bg_music);
+	bg_loop.start();
 }
 
 void game_state::start_playing() {
 	show_intro = false;
 	set_background('l');
 	world.game = this;
-	controller.register_event_listeners();
 	enter_lobby();
-	bg_music = no::require_sound("bg");
-	play_sound(bg_music);
-	bg_loop.start();
+	ui.register_event_listeners(); // POST-BUGFIX: Moved to here instead of constructor
+	controller.register_event_listeners();
 }
 
 game_state::~game_state() {
@@ -59,8 +93,11 @@ void game_state::play_sound(no::audio_source* sound) {
 
 void game_state::enter_lobby() {
 	world.rooms.clear();
+	world.player.room = nullptr;
+	world.is_boss_dead = false;
 	renderer.clear_rendered();
 	generator.generate_lobby(world);
+	set_background('l'); // POST-BUGFIX: Background wasn't set until going to next room.
 	for (auto& room : world.rooms) {
 		if (const auto position{ room.find_empty_position() }) {
 			world.player.transform.position = position.value();
@@ -69,27 +106,42 @@ void game_state::enter_lobby() {
 	}
 	world.player.stats.health = world.player.final_stats().max_health;
 	world.player.stats.mana = world.player.final_stats().max_mana;
+#if POST_LD_FEATURE_KILL_COUNT
+	in_lobby = true;
+#endif
 }
 
 void game_state::enter_dungeon(char type) {
 	world.rooms.clear();
+	world.player.room = nullptr;
+	world.is_boss_dead = false;
 	renderer.clear_rendered();
 	generator.generate_dungeon(world, type);
+	set_background(type); // POST-BUGFIX: Background wasn't set until going to next room.
 	for (auto& room : world.rooms) {
 		if (const auto position{ room.find_empty_position() }) {
 			world.player.transform.position = position.value();
 			break;
 		}
 	}
+	world.add_monsters();
+#if POST_LD_FEATURE_KILL_COUNT
+	monster_count = 0;
+	kill_count = 0;
+	for (auto& room : world.rooms) {
+		monster_count += static_cast<int>(room.monsters.size());
+	}
+	in_lobby = false;
+#endif
 }
 
 void game_state::update() {
-	if (show_intro) {
-		return;
-	}
 	if (bg_loop.milliseconds() > 42000) {
 		play_sound(bg_music);
 		bg_loop.start();
+	}
+	if (show_intro) {
+		return;
 	}
 #if WITH_DEBUG_MENU
 	no::imgui::start_frame();
@@ -161,6 +213,17 @@ void game_state::update() {
 			world.player.give_item(item_type::life_potion, 6);
 			world.player.give_item(item_type::moon_tiara, 7);
 		}
+		// POST-DEBUG: Just to test the boss bugfixes/tweaks. Not part of release build.
+		if (ImGui::MenuItem("Go to boss room")) {
+			for (auto& room : world.rooms) {
+				if (room.is_boss_room) {
+					world.player.transform.position = room.index.to<float>() * 32.0f + 96.0f;
+					world.player.transform.position.y += 64.0f;
+					break;
+				}
+			}
+		}
+		//
 		ImGui::PopItemWidth();
 		ImGui::EndMenu();
 	}
@@ -216,21 +279,44 @@ void game_state::draw() {
 
 		// shadow
 		no::get_shader_variable("color").set(no::vector4f{ 0.2f, 0.2f, 0.2f, 1.0f });
-		intro_text.transform.position = renderer.camera.transform.scale / 2.0f - intro_text.transform.scale / 2.0f;
+		intro_text.transform.position.x = renderer.camera.transform.scale.x / 2.0f - intro_text.transform.scale.x / 2.0f;
+		intro_text.transform.position.y = 256.0f;
 		intro_text.transform.position -= 4.0f + random_intro_dist_1;
 		intro_text.draw(renderer.rectangle);
 
 		// shadow
 		no::get_shader_variable("color").set(no::vector4f{ 0.2f, 0.2f, 0.2f, 1.0f });
-		intro_text.transform.position = renderer.camera.transform.scale / 2.0f - intro_text.transform.scale / 2.0f;
+		intro_text.transform.position.x = renderer.camera.transform.scale.x / 2.0f - intro_text.transform.scale.x / 2.0f;
+		intro_text.transform.position.y = 256.0f;
 		intro_text.transform.position += 4.0f + random_intro_dist_2;
 		intro_text.draw(renderer.rectangle);
 
 		// white
 		no::get_shader_variable("color").set(no::vector4f{ 1.0f });
-		intro_text.transform.position = renderer.camera.transform.scale / 2.0f - intro_text.transform.scale / 2.0f;
+		intro_text.transform.position.x = renderer.camera.transform.scale.x / 2.0f - intro_text.transform.scale.x / 2.0f;
+		intro_text.transform.position.y = 256.0f;
 		intro_text.transform.position += random_intro_dist_1 / 2.0f;
 		intro_text.draw(renderer.rectangle);
+
+		// POST-TWEAK: Show instructions!
+		// shadow
+		no::get_shader_variable("color").set(no::vector4f{ 0.2f, 0.2f, 0.2f, 1.0f });
+		instructions.transform.position.x = renderer.camera.transform.scale.x / 2.5f - instructions.transform.scale.x / 2.0f;
+		instructions.transform.position.y = renderer.camera.transform.scale.y / 1.3f - instructions.transform.scale.y;
+		instructions.transform.position -= 4.0f;
+		instructions.draw(renderer.rectangle);
+		// shadow
+		no::get_shader_variable("color").set(no::vector4f{ 0.2f, 0.2f, 0.2f, 1.0f });
+		instructions.transform.position.x = renderer.camera.transform.scale.x / 2.5f - instructions.transform.scale.x / 2.0f;
+		instructions.transform.position.y = renderer.camera.transform.scale.y / 1.3f - instructions.transform.scale.y;
+		instructions.transform.position += 4.0f;
+		instructions.draw(renderer.rectangle);
+		// white
+		no::get_shader_variable("color").set(no::vector4f{ 1.0f });
+		instructions.transform.position.x = renderer.camera.transform.scale.x / 2.5f - instructions.transform.scale.x / 2.0f;
+		instructions.transform.position.y = renderer.camera.transform.scale.y / 1.3f - instructions.transform.scale.y;
+		instructions.draw(renderer.rectangle);
+		//
 		return;
 	}
 	renderer.draw();

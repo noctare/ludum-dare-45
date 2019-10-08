@@ -8,7 +8,7 @@ game_world_generator::game_world_generator() {
 void game_world_generator::generate_dungeon(game_world& world, char type) {
 	world.is_lobby = false;
 	generating_lobby = false;
-	for (int i{ 0 }; i < 5; i++) {
+	for (int i{ 0 }; i < 8; i++) { // POST-TWEAK: Increase number of rooms slightly, from 5.
 		make_room(world, type);
 	}
 	generating_boss_room = true;
@@ -23,7 +23,7 @@ void game_world_generator::generate_dungeon(game_world& world, char type) {
 		while (room.doors.size() < 2) {
 			place_doors(world);
 			attempts++;
-			if (attempts > 1000) {
+			if (attempts > 100) { // POST-TWEAK: Try less. 1000 -> 100
 				break;
 			}
 		}

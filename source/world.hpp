@@ -62,6 +62,11 @@ public:
 		return 3;
 	}
 
+	// POST-TWEAK/BUGFIX: Smashed crates should be possible to walk over.
+	bool can_collide() const {
+		return is_crate ? !open : true;
+	}
+
 };
 
 class game_world_room {
@@ -84,6 +89,7 @@ public:
 		no::vector2f speed;
 		bool by_player{ false };
 		int health{ 0 };
+		std::vector<int> hits; // POST-BUGFIX: Don't hit same enemy twice with same attack.
 	};
 
 	game_world* world{ nullptr };
@@ -115,6 +121,8 @@ public:
 	int next_monster_type();
 
 	void update();
+	void add_monsters();
+
 	void set_tile(int x, int y, game_world_tile tile);
 	game_world_tile tile_at(int x, int y) const;
 	game_world_tile& get_tile(int x, int y);
@@ -176,9 +184,15 @@ public:
 	no::random_number_generator random;
 	bool is_lobby{ false };
 
+	// POST-TWEAK: Don't teleport to lobby directly after killing boss.
+	bool is_boss_dead{ false };
+	int boss_item_to_give{ -1 };
+	//
+
 	game_world();
 
 	void update();
+	void add_monsters();
 
 	bool test_tile_mask(const game_world_room& room, no::vector2f position) const;
 

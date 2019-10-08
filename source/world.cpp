@@ -149,8 +149,21 @@ int game_world_room::next_monster_type() {
 }
 
 void game_world_room::update() {
+	for (auto& monster : monsters) {
+		monster.update();
+	}
+	std::sort(monsters.begin(), monsters.end(), [](const monster_object& a, const monster_object& b) {
+		return b.transform.position.y > a.transform.position.y;
+	});
+	process_attacks();
+}
+
+void game_world_room::add_monsters() {
 	if (!initial_monsters_spawned && !world->is_lobby) {
-		const int spawn_count{ world->random.next<int>(0, width() / 2) };
+		int spawn_count{ world->random.next<int>(0, width() / 2) };
+		if (is_boss_room) {
+			spawn_count = std::max(4, spawn_count); // POST-BUGFIX: Fix boss not spawning because this was 0.
+		}
 		for (int i{ 0 }; i < spawn_count; i++) {
 			if (auto position{ find_empty_position() }) {
 				auto& monster{ monsters.emplace_back(next_monster_type()) };
@@ -165,7 +178,7 @@ void game_world_room::update() {
 				}
 			}
 		}
-		if (!is_boss_room && world->random.chance(0.75f)) {
+		if (!is_boss_room && world->random.chance(0.8f)) {
 			const int chest_count{ world->random.next<int>(1, 5) };
 			for (int i{ 0 }; i < chest_count; i++) {
 				if (auto position{ find_empty_position() }) {
@@ -173,19 +186,12 @@ void game_world_room::update() {
 					chest.transform.position = position.value();
 					chest.item = world->random.next<int>(0, 36);
 					chest.id = world->next_object_id();
-					chest.is_crate = world->random.chance(0.6f);
+					chest.is_crate = world->random.chance(0.4f); // POST-TWEAK: Chests were too rare.
 				}
 			}
 		}
 		initial_monsters_spawned = true;
 	}
-	for (auto& monster : monsters) {
-		monster.update();
-	}
-	std::sort(monsters.begin(), monsters.end(), [](const monster_object& a, const monster_object& b) {
-		return b.transform.position.y > a.transform.position.y;
-	});
-	process_attacks();
 }
 
 void game_world_room::set_tile(int x, int y, game_world_tile tile) {
@@ -264,7 +270,20 @@ void game_world_room::process_attacks() {
 					continue;
 				}
 				if (monster.collision_transform().collides_with(attack.position, attack.size)) {
+					// POST-BUGFIX: Don't hit same enemy twice with same attack.
+					bool skip_this_one{ false };
+					for (const int hit_id : attack.hits) {
+						if (hit_id == monster.id) {
+							skip_this_one = true;
+							break;
+						}
+					}
+					if (skip_this_one) {
+						continue;
+					}
+					//
 					monster.on_being_hit();
+					attack.hits.push_back(monster.id);
 					float damage{ 0.0f };
 					damage -= monster.stats.defense;
 					damage += player_stats.strength;
@@ -278,15 +297,27 @@ void game_world_room::process_attacks() {
 					}
 					monster.stats.health -= damage;
 					if (monster.stats.health <= 0.0f) {
+#if POST_LD_FEATURE_KILL_COUNT
+						world->game->kill_count++;
+#endif
 						monster.dead = true;
-						monster.set_die_animation();
 						if (monster.type == monster_type::fire_boss) {
-							player.give_item(item_type::fire_head, 0);
-							world->game->enter_lobby();
+							//player.give_item(item_type::fire_head, 0);
+							//world->game->enter_lobby();
+							world->is_boss_dead = true; // POST-TWEAK: Don't go to lobby immediately.
+							world->boss_item_to_give = item_type::fire_head;
 							return;
 						} else if (monster.type == monster_type::water_boss) {
-							player.give_item(item_type::water_head, 1);
-							world->game->enter_lobby();
+							//player.give_item(item_type::water_head, 1);
+							//world->game->enter_lobby();
+							world->is_boss_dead = true; // POST-TWEAK: Don't go to lobby immediately.
+							world->boss_item_to_give = item_type::water_head;
+							return;
+						} else if (monster.type == monster_type::final_boss) {
+							// POST-BUGFIX: Fixes bug where player does not go to lobby after final boss.
+							//world->game->enter_lobby();
+							world->is_boss_dead = true; // POST-TWEAK: Don't go to lobby immediately.
+							world->boss_item_to_give = item_type::staff_of_life;
 							return;
 						}
 					}
@@ -370,7 +401,7 @@ bool game_world::is_x_empty(game_world_room* room, no::vector2f position, no::ve
 		}
 	}
 	for (auto& chest : room->chests) {
-		if (chest.collision_transform().collides_with(position)) {
+		if (chest.can_collide() && chest.collision_transform().collides_with(position)) {
 			return false;
 		}
 	}
@@ -387,7 +418,7 @@ bool game_world::is_x_empty(game_world_room* room, no::vector2f position, no::ve
 		}
 	}
 	for (auto& chest : room->chests) {
-		if (chest.collision_transform().collides_with(position)) {
+		if (chest.can_collide() && chest.collision_transform().collides_with(position)) {
 			return false;
 		}
 	}
@@ -418,7 +449,7 @@ bool game_world::is_y_empty(game_world_room* room, no::vector2f position, no::ve
 		}
 	}
 	for (auto& chest : room->chests) {
-		if (chest.collision_transform().collides_with(position)) {
+		if (chest.can_collide() && chest.collision_transform().collides_with(position)) {
 			return false;
 		}
 	}
@@ -435,7 +466,7 @@ bool game_world::is_y_empty(game_world_room* room, no::vector2f position, no::ve
 		}
 	}
 	for (auto& chest : room->chests) {
-		if (chest.collision_transform().collides_with(position)) {
+		if (chest.can_collide() && chest.collision_transform().collides_with(position)) {
 			return false;
 		}
 	}
@@ -613,7 +644,7 @@ bool game_world_room::is_tile_colliding_with(no::vector2f position) const {
 
 bool game_world_room::is_position_within(no::vector2f position) const {
 	no::vector2i position_index{ position.to<int>() / tile_size };
-	return position_index >= index && index.x + width() > position_index.x&& index.y + height() > position_index.y;
+	return position_index >= index && index.x + width() > position_index.x && index.y + height() > position_index.y;
 }
 
 bool game_world_room::is_connected_to(const game_world_room& room) const {
@@ -658,7 +689,8 @@ std::optional<no::vector2f> game_world_room::find_empty_position() const {
 		};
 		bool next{ false };
 		for (const auto& chest : chests) {
-			if (chest.transform.position.distance_to(position) < 8.0f) {
+			// POST-BUGFIX: Change distance
+			if (chest.collision_transform().position.distance_to(position) < chest.collision_transform().scale.x * 1.2f) {
 				next = true;
 				break;
 			}
@@ -708,6 +740,12 @@ void game_world::update() {
 		}
 	} else if (player.room) {
 		player.room->update();
+	}
+}
+
+void game_world::add_monsters() {
+	for (auto& room : rooms) {
+		room.add_monsters();
 	}
 }
 

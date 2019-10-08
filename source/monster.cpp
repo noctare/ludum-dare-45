@@ -1,5 +1,7 @@
 #include "monster.hpp"
 #include "world.hpp"
+#include "game.hpp"
+#include "item.hpp"
 
 namespace monster_type {
 
@@ -41,33 +43,37 @@ object_stats get_stats(int type) {
 	case skeleton:
 		stats.max_health = 50.0f;
 		stats.defense = 5.0f;
-		stats.strength = 17.0f;
+		stats.strength = 20.0f; // POST-TWEAK: 17 -> 20
 		stats.attack_speed = 8.0f;
 		stats.move_speed = 1.0f;
 		stats.bonus_strength = 0.0f;
 		stats.critical_strike_chance = 0.05f;
 		stats.health_regeneration_rate = 0.001f;
+		stats.bonus_strength = 3.0f; // POST-TWEAK: Added
 		break;
 
 	case life_wizard:
 		stats.defense = 2.0f;
-		stats.strength = 14.0f;
+		stats.strength = 18.0f; // POST-TWEAK: 14 -> 18
 		stats.max_health = 100.0f;
 		stats.attack_speed = 4.0f;
+		stats.bonus_strength = 3.0f; // POST-TWEAK: Added
 		break;
 
 	case dark_wizard:
 		stats.defense = 10.0f;
-		stats.strength = 16.0f;
+		stats.strength = 18.0f; // POST-TWEAK: 16 - 18
 		stats.max_health = 80.0f;
 		stats.attack_speed = 6.0f;
+		stats.bonus_strength = 5.0f; // POST-TWEAK: Added
 		break;
 
 	case toxic_wizard:
 		stats.defense = 7.0f;
-		stats.strength = 18.0f;
+		stats.strength = 22.0f; // POST-TWEAK: 18 -> 22
 		stats.max_health = 60.0f;
 		stats.attack_speed = 10.0f;
+		stats.bonus_strength = 3.0f; // POST-TWEAK: Added
 		break;
 
 	case big_fire_slime:
@@ -75,48 +81,55 @@ object_stats get_stats(int type) {
 		stats.strength = 15.0f;
 		stats.max_health = 20.0f;
 		stats.attack_speed = 8.0f;
+		stats.bonus_strength = 7.0f; // POST-TWEAK: Added
 		break;
 
 	case small_fire_slime:
 		stats.defense = 2.0f;
-		stats.strength = 13.0f;
+		stats.strength = 10.0f; // POST-TWEAK: 13 -> 20
 		stats.max_health = 10.0f;
 		stats.attack_speed = 10.0f;
+		stats.bonus_strength = 3.0f; // POST-TWEAK: Added
 		break;
 
 	case big_water_slime:
 		stats.defense = 5.0f;
-		stats.strength = 13.0f;
+		stats.strength = 15.0f; // POST-TWEAK: 13 -> 15
 		stats.max_health = 20.0f;
 		stats.attack_speed = 10.0f;
+		stats.bonus_strength = 7.0f; // POST-TWEAK: Added
 		break;
 
 	case small_water_slime:
 		stats.defense = 2.0f;
-		stats.strength = 11.0f;
+		stats.strength = 15.0f; // POST-TWEAK: 11 -> 15
 		stats.max_health = 10.0f;
 		stats.attack_speed = 12.0f;
+		stats.bonus_strength = 3.0f; // POST-TWEAK: Added
 		break;
 
 	case knight:
 		stats.defense = 15.0f;
-		stats.strength = 20.0f;
+		stats.strength = 30.0f; // POST-TWEAK: 20 -> 30
 		stats.max_health = 140.0f;
 		stats.attack_speed = 2.0f;
+		stats.bonus_strength = 10.0f; // POST-TWEAK: Added
 		break;
 
 	case water_fish:
 		stats.defense = 12.0f;
-		stats.strength = 20.0f;
+		stats.strength = 25.0f; // POST-TWEAK: 20 -> 25
 		stats.max_health = 90.0f;
 		stats.attack_speed = 4.0f;
+		stats.bonus_strength = 5.0f; // POST-TWEAK: Added
 		break;
 
 	case fire_imp:
 		stats.defense = 11.0f;
-		stats.strength = 21.0f;
+		stats.strength = 25.0f; // POST-TWEAK: 21 -> 25
 		stats.max_health = 110.0f;
 		stats.attack_speed = 6.0f;
+		stats.bonus_strength = 5.0f; // POST-TWEAK: Added
 		break;
 
 	case fire_boss:
@@ -125,8 +138,8 @@ object_stats get_stats(int type) {
 		stats.defense = 20.0f;
 		stats.strength = 25.0f;
 		stats.max_health = 300.0f;
-		stats.attack_speed = 9.0f;
-		stats.critical_strike_chance = 0.2;
+		stats.attack_speed = 6.0f; // POST-TWEAK: 9 -> 6
+		stats.critical_strike_chance = 0.4; // POST-TWEAK: 0.2 -> 0.4
 		stats.bonus_strength = 5.0f;
 		break;
 	}
@@ -445,11 +458,22 @@ void monster_object::update() {
 	if (dead) {
 		if (!animation.is_done()) {
 			animation.update(1.0f / 60.0f);
+		} else if (last_animation != animation_type::die) {
+			set_die_animation(); // POST-BUGFIX: Delay die animation until hit-flash has shown.
+		} else if (animation.is_done() && last_animation == animation_type::die) {
+			if (type == monster_type::fire_boss) {
+				world->game->ui.on_chest_open(item_type::fire_head, true);
+			} else if (type == monster_type::water_boss) {
+				world->game->ui.on_chest_open(item_type::water_head, true);
+			} else if (type == monster_type::final_boss) {
+				world->game->ui.on_chest_open(item_type::staff_of_life, true);
+			}
 		}
 		return;
 	}
 	if (type == monster_type::fire_boss || type == monster_type::water_boss || type == monster_type::final_boss) {
 		facing_down = true;
+		facing_right = true; // POST-BUGFIX: Boss animations should not flip. Set to true explicitly.
 	}
 	if (animation.is_done()) {
 		if (last_animation == animation_type::hit_flash) {
@@ -466,7 +490,7 @@ void monster_object::update() {
 			set_idle_animation();
 		}
 	}
-	if (type != monster_type::fire_boss && type != monster_type::water_boss) {
+	if (type != monster_type::fire_boss && type != monster_type::water_boss && type != monster_type::final_boss) {
 		const auto player_collision{ world->player.collision_transform() };
 		const auto monster_collision{ collision_transform() };
 		distance_to_player = player_collision.position.distance_to(monster_collision.position + monster_collision.scale / 2.0f);
@@ -491,8 +515,8 @@ void monster_object::update() {
 		attack();
 	} else if (monster_type::is_magic(type) && distance_to_player < tile_size_f * 3.0f && become_angry_timer.seconds() > 2) {
 		attack();
-	} else if (animation.is_looping() && type != monster_type::fire_boss && type != monster_type::water_boss) {
-		move(input_left, input_right, input_up, input_down);
+	} else if (animation.is_looping() && type != monster_type::fire_boss && type != monster_type::water_boss && type != monster_type::final_boss) {
+		move(input_left, input_right, input_up, input_down); // POST-BUGFIX: Final boss should not move.
 	}
 	animation.update(1.0f / 60.0f);
 	const auto combined_stats{ monster_type::get_stats(type) };
