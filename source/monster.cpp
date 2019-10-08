@@ -698,4 +698,3 @@ void monster_object::set_die_animation() {
 	animation.set_frame(0);
 	animation.fps = 5.0f;
 }
-

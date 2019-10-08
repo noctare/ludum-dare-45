@@ -343,10 +343,10 @@ void game_world_room::process_attacks() {
 					world->game->ui.add_hit_splat(player.id);
 				}
 				player.stats.health -= damage;
-				if (player.stats.health <= 0.0f) {
-					world->game->enter_lobby();
-					return;
-				}
+				//if (player.stats.health <= 0.0f) {
+					//world->game->enter_lobby();
+					//return;
+				//}
 				attack.health--;
 				if (attack.health <= 0) {
 					break;
@@ -733,6 +733,23 @@ game_world::game_world() {
 }
 
 void game_world::update() {
+	// POST-TWEAK
+	if (player.stats.health <= 0.0f) {
+		if (!player.animation.is_done()) {
+			player.animation.update(1.0f / 60.0f);
+		} else if (player.last_animation != animation_type::die) {
+			player.set_die_animation();
+		}
+		if (player.last_animation == animation_type::die) {
+			if (player.animation.is_done()) {
+				game->enter_lobby();
+			} else {
+				player.animation.update(1.0f / 60.0f);
+			}
+			return;
+		}
+	}
+	//
 	player.update();
 	if (!player.room || game->show_all_rooms) {
 		for (auto& room : rooms) {

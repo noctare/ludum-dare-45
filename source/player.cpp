@@ -23,6 +23,21 @@ constexpr no::vector4f player_uv_cast[2]{
 	{ 0.0f, 7.0f / player_animation_rows, 1.0f, 1.0f / player_animation_rows }
 };
 
+// POST-TWEAK: Adding player hit/die animations
+constexpr no::vector4f player_uv_hit[2]{
+	{ 0.0f, 8.0f / player_animation_rows, 1.0f / 4.0f, 1.0f / player_animation_rows },
+	{ 0.0f, 8.0f / player_animation_rows, 1.0f / 4.0f, 1.0f / player_animation_rows }
+};
+constexpr no::vector4f player_uv_die[2]{
+	{ 0.0f, 8.0f / player_animation_rows, 1.0f, 1.0f / player_animation_rows },
+	{ 0.0f, 8.0f / player_animation_rows, 1.0f, 1.0f / player_animation_rows }
+};
+constexpr no::vector4f player_uv_hit_flash[2]{
+	{ 0.0f, 9.0f / player_animation_rows, 1.0f / 4.0f, 1.0f / player_animation_rows },
+	{ 0.0f, 9.0f / player_animation_rows, 1.0f / 4.0f, 1.0f / player_animation_rows }
+};
+//
+
 player_object::player_object() {
 	for (int i{ 0 }; i < 8; i++) {
 		items[i] = -1;
@@ -47,12 +62,19 @@ void player_object::update() {
 		world->game->set_background(room->type);
 	}
 	if (animation.is_done()) {
-		animation.start_looping();
+		if (last_animation == animation_type::hit_flash) {
+			set_hit_animation();
+			return;
+		} else {
+			animation.start_looping();
+		}
 	}
-	if (is_moving) {
-		set_walk_animation();
-	} else if (animation.is_looping()) {
-		set_idle_animation();
+	if (animation.is_looping()) {
+		if (is_moving) {
+			set_walk_animation();
+		} else {
+			set_idle_animation();
+		}
 	}
 	animation.update(1.0f / 60.0f);
 	const auto combined_stats{ final_stats() };
@@ -124,7 +146,7 @@ void player_object::attack() {
 }
 
 void player_object::on_being_hit() {
-	//set_hit_animation();
+	set_hit_flash_animation();
 }
 
 void player_object::set_walk_animation() {
@@ -135,6 +157,7 @@ void player_object::set_walk_animation() {
 	const int direction_index{ facing_down ? 1 : 0 };
 	animation.set_tex_coords(player_uv_walk[direction_index].xy, player_uv_walk[direction_index].zw);
 	animation.set_frame(0);
+	animation.fps = 10.0f;
 	last_animation = animation_type::walk;
 }
 
@@ -146,6 +169,7 @@ void player_object::set_idle_animation() {
 	const int direction_index{ facing_down ? 1 : 0 };
 	animation.set_tex_coords(player_uv_idle[direction_index].xy, player_uv_idle[direction_index].zw);
 	animation.set_frame(0);
+	animation.fps = 10.0f;
 	last_animation = animation_type::idle;
 }
 
@@ -158,6 +182,7 @@ void player_object::set_stab_animation() {
 	animation.set_tex_coords(player_uv_stab[direction_index].xy, player_uv_stab[direction_index].zw);
 	animation.stop_looping();
 	animation.set_frame(0);
+	animation.fps = 10.0f;
 	last_animation = animation_type::stab;
 }
 
@@ -170,8 +195,48 @@ void player_object::set_cast_animation() {
 	animation.set_tex_coords(player_uv_cast[direction_index].xy, player_uv_cast[direction_index].zw);
 	animation.stop_looping();
 	animation.set_frame(0);
+	animation.fps = 10.0f;
 	last_animation = animation_type::cast;
 }
+
+// POST-TWEAK: Use the player hit animation - this code is copied from monster
+void player_object::set_hit_animation() {
+	if (last_animation == animation_type::hit && !direction_changed) {
+		return;
+	}
+	animation.frames = 1;
+	const int direction_index{ facing_down ? 1 : 0 };
+	animation.set_tex_coords(player_uv_hit[direction_index].xy, player_uv_hit[direction_index].zw);
+	animation.stop_looping();
+	animation.set_frame(0);
+	animation.fps = 5.0f;
+	last_animation = animation_type::hit;
+}
+void player_object::set_hit_flash_animation() {
+	if (last_animation == animation_type::hit_flash && !direction_changed) {
+		return;
+	}
+	animation.frames = 1;
+	const int direction_index{ facing_down ? 1 : 0 };
+	animation.set_tex_coords(player_uv_hit_flash[direction_index].xy, player_uv_hit_flash[direction_index].zw);
+	animation.stop_looping();
+	animation.set_frame(0);
+	animation.fps = 10.0f;
+	last_animation = animation_type::hit_flash;
+}
+void player_object::set_die_animation() {
+	if (last_animation == animation_type::die && !direction_changed) {
+		return;
+	}
+	animation.frames = 4;
+	const int direction_index{ facing_down ? 1 : 0 };
+	animation.set_tex_coords(player_uv_die[direction_index].xy, player_uv_die[direction_index].zw);
+	animation.stop_looping();
+	animation.set_frame(0);
+	animation.fps = 5.0f;
+	last_animation = animation_type::die;
+}
+//
 
 no::transform2 player_object::collision_transform() const {
 	no::transform2 collision;

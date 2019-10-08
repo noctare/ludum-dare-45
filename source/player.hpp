@@ -45,6 +45,7 @@ public:
 
 	void open_chest();
 
+	void set_die_animation();
 private:
 
 	std::vector<int> weapons; // item_type
@@ -56,6 +57,7 @@ private:
 	void set_idle_animation();
 	void set_stab_animation();
 	void set_cast_animation();
-	//void set_hit_animation();
+	void set_hit_animation();
+	void set_hit_flash_animation();
 
 };
